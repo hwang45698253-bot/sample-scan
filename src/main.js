@@ -193,16 +193,17 @@ function setPartNumber(code, source = '스캔 완료') {
 
 // Handle Barcode Detection Event
 function handleBarcodeScanned(decodedText, decodedResult) {
-  // Guard: ignore empty/null results
   if (!decodedText || typeof decodedText !== 'string') return;
 
-  // Show RAW barcode text on screen for debugging (visible on mobile)
-  const formatName = decodedResult?.result?.format?.formatName || 'unknown';
-  showToast(`📡 RAW: "${decodedText}" [${formatName}]`, 4000);
-
+  const formatName = decodedResult?.result?.format?.formatName || 'Code 128';
   const finalPartNo = extractStandardPartNo(decodedText);
 
-  // Set directly - no duplicate suppression (testing)
+  if (decodedText !== finalPartNo) {
+    showToast(`✅ 스캔 성공: ${finalPartNo} (RAW: ${decodedText})`);
+  } else {
+    showToast(`✅ 스캔 성공: ${finalPartNo}`);
+  }
+
   setPartNumber(finalPartNo, `${formatName} 스캔`);
   closeScannerModal();
 }

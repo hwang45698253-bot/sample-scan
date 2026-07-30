@@ -185,10 +185,7 @@ function handleBarcodeScanned(decodedText, decodedResult) {
   let finalPartNo = decodedText;
   if (PART_NO_MAP[decodedText]) {
     finalPartNo = PART_NO_MAP[decodedText];
-    showToast(`바코드 (${decodedText}) ➔ 품번 (${finalPartNo}) [${selectedEvent}] 변환 완료`);
-  } else if (decodedText.startsWith('712') || decodedText.startsWith('714')) {
-    finalPartNo = '88840DC020C2N';
-    showToast(`바코드 (${decodedText}) ➔ 품번 (${finalPartNo}) [${selectedEvent}] 변환 완료`);
+    showToast(`바코드 ➔ 품번 (${finalPartNo}) [${selectedEvent}] 매핑 완료`);
   } else {
     showToast(`품번 스캔 완료: ${decodedText} [${selectedEvent}]`);
   }

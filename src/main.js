@@ -196,28 +196,14 @@ function handleBarcodeScanned(decodedText, decodedResult) {
   // Guard: ignore empty/null results
   if (!decodedText || typeof decodedText !== 'string') return;
 
-  const now = Date.now();
-  // Duplicate suppression: same exact raw text within 2 seconds
-  if (lastScannedCode === decodedText && (now - lastScanTimestamp < 2000)) {
-    return;
-  }
-
-  lastScannedCode = decodedText;
-  lastScanTimestamp = now;
-
-  // Log raw barcode for debugging
-  console.log('[Scan] Raw barcode text:', JSON.stringify(decodedText), 'Format:', decodedResult?.result?.format?.formatName || 'unknown');
+  // Show RAW barcode text on screen for debugging (visible on mobile)
+  const formatName = decodedResult?.result?.format?.formatName || 'unknown';
+  showToast(`📡 RAW: "${decodedText}" [${formatName}]`, 4000);
 
   const finalPartNo = extractStandardPartNo(decodedText);
-  console.log('[Scan] Extracted part number:', finalPartNo);
 
-  if (decodedText !== finalPartNo) {
-    showToast(`바코드 (${decodedText}) ➔ 품번 (${finalPartNo}) [${selectedEvent}] 추출 완료`);
-  } else {
-    showToast(`품번 스캔 완료: ${finalPartNo} [${selectedEvent}]`);
-  }
-
-  setPartNumber(finalPartNo, 'Code 128 스캔');
+  // Set directly - no duplicate suppression (testing)
+  setPartNumber(finalPartNo, `${formatName} 스캔`);
   closeScannerModal();
 }
 

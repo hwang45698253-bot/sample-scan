@@ -35,7 +35,7 @@ export class BarcodeScanner {
     await this.fetchCameras();
 
     const config = {
-      fps: 25,
+      fps: 15,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
         const minDim = Math.min(viewfinderWidth, viewfinderHeight);
         const width = Math.floor(minDim * 0.9);
@@ -45,11 +45,14 @@ export class BarcodeScanner {
       aspectRatio: 1.333333,
       formatsToSupport: [
         Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13
       ],
       experimentalFeatures: {
-        useBarCodeDetectorIfSupported: false
-      }
+        useBarCodeDetectorIfSupported: true
+      },
+      rememberLastUsedCamera: false,
+      disableFlip: false
     };
 
     const scanSuccess = (text, res) => {

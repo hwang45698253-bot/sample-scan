@@ -7,9 +7,9 @@
     <meta name="description" content="모바일 카메라를 사용한 실시간 Code 128 품번 스캔 웹 앱" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="./assets/index-DzPMayUm.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Dm3dHq7V.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <script type="module" crossorigin src="./assets/index-B4uKnzlA.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Bt-Sj73w.css">
   </head>
   <body>
     <div id="app" class="app-container">
@@ -150,13 +150,14 @@
             <input id="qtyInput" type="number" min="1" value="1" inputmode="numeric" class="standard-input" />
           </div>
 
-          <!-- Event Selection Buttons Bar (P0, P1, P2 M, SOP) -->
+          <!-- Event Selection Buttons Bar (P0, P1, P2, M, SOP - 5 Buttons) -->
           <div class="event-section">
             <span class="event-label">이벤트 선택</span>
             <div class="event-buttons-group">
               <button class="event-btn active" data-event="P0">P0</button>
               <button class="event-btn" data-event="P1">P1</button>
-              <button class="event-btn" data-event="P2 M">P2 M</button>
+              <button class="event-btn" data-event="P2">P2</button>
+              <button class="event-btn" data-event="M">M</button>
               <button class="event-btn" data-event="SOP">SOP</button>
             </div>
           </div>
@@ -285,6 +286,6 @@
 
       <!-- Toast Notification Container -->
       <div id="toastContainer" class="toast-container"></div>
-    </div>
+    </div>
   </body>
 </html>

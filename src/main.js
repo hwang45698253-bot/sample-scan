@@ -193,15 +193,24 @@ function setPartNumber(code, source = '스캔 완료') {
 
 // Handle Barcode Detection Event
 function handleBarcodeScanned(decodedText, decodedResult) {
+  // Guard: ignore empty/null results
+  if (!decodedText || typeof decodedText !== 'string') return;
+
   const now = Date.now();
-  if (lastScannedCode === decodedText && (now - lastScanTimestamp < 1500)) {
+  // Duplicate suppression: same exact raw text within 2 seconds
+  if (lastScannedCode === decodedText && (now - lastScanTimestamp < 2000)) {
     return;
   }
 
   lastScannedCode = decodedText;
   lastScanTimestamp = now;
 
+  // Log raw barcode for debugging
+  console.log('[Scan] Raw barcode text:', JSON.stringify(decodedText), 'Format:', decodedResult?.result?.format?.formatName || 'unknown');
+
   const finalPartNo = extractStandardPartNo(decodedText);
+  console.log('[Scan] Extracted part number:', finalPartNo);
+
   if (decodedText !== finalPartNo) {
     showToast(`바코드 (${decodedText}) ➔ 품번 (${finalPartNo}) [${selectedEvent}] 추출 완료`);
   } else {
@@ -214,12 +223,21 @@ function handleBarcodeScanned(decodedText, decodedResult) {
 
 // Modal Controllers
 async function openScannerModal() {
+  // CRITICAL: Reset duplicate detection state so fresh scans are never blocked
+  lastScannedCode = null;
+  lastScanTimestamp = 0;
+
   scannerModal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
-  if (!scannerInstance) {
-    scannerInstance = new BarcodeScanner('interactiveScanner', handleBarcodeScanned);
+  // Clear the scanner container to remove any stale video/canvas elements
+  const scannerContainer = document.getElementById('interactiveScanner');
+  if (scannerContainer) {
+    scannerContainer.innerHTML = '';
   }
+
+  // Always create a fresh scanner instance to avoid stale frame buffer issues
+  scannerInstance = new BarcodeScanner('interactiveScanner', handleBarcodeScanned);
 
   try {
     const targetCamIndex = 3;
@@ -245,8 +263,21 @@ async function openScannerModal() {
 
 async function closeScannerModal() {
   if (scannerInstance) {
-    await scannerInstance.stop();
+    try {
+      await scannerInstance.stop();
+    } catch (e) {
+      console.warn('Scanner stop error (safe to ignore):', e);
+    }
+    // Fully destroy the instance to prevent stale frame buffer reuse
+    scannerInstance = null;
   }
+
+  // Clear any residual video/canvas elements from the scanner container
+  const scannerContainer = document.getElementById('interactiveScanner');
+  if (scannerContainer) {
+    scannerContainer.innerHTML = '';
+  }
+
   scannerModal.classList.add('hidden');
   document.body.style.overflow = '';
 }

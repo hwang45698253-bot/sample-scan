@@ -130,6 +130,41 @@ function showPartInfo(partNo) {
   partInfoBox.textContent = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
 }
 
+// Known Barcode Fallback Mapping Dictionary
+const PART_NO_MAP = {
+  '712694601071001': '88840DC020C2N',
+  '7147965121710060': '88840DC020C2N'
+};
+
+/**
+ * Smart Part Number Pattern Extractor
+ * Matches Part Numbers starting with '888' or '898' (10 to 13 alphanumeric chars, with optional 'P' prefix)
+ */
+function extractStandardPartNo(raw) {
+  if (!raw) return '';
+  const clean = String(raw).trim().toUpperCase();
+
+  // 1. Check for 888 or 898 prefix pattern (10 to 13 characters: e.g. 88840DC020C2N, 89810DC010)
+  const match888898 = clean.match(/(888|898)[A-Z0-9]{7,10}/);
+  if (match888898) {
+    return match888898[0];
+  }
+
+  // 2. Check for 'P' prefix before 888/898 (e.g. P88840DC020C2N -> 88840DC020C2N)
+  if (clean.startsWith('P')) {
+    const pMatch = clean.slice(1).match(/(888|898)[A-Z0-9]{7,10}/);
+    if (pMatch) return pMatch[0];
+  }
+
+  // 3. Fallback map for specific supplier barcode IDs
+  if (PART_NO_MAP[clean]) {
+    return PART_NO_MAP[clean];
+  }
+
+  // 4. If no 888/898 pattern found, return cleaned alphanumeric barcode string
+  return clean.replace(/[^A-Za-z0-9-]/g, '');
+}
+
 // Fetch Master Rows from Google Script API
 async function loadMasterData() {
   try {
@@ -146,8 +181,9 @@ async function loadMasterData() {
 
 // Set Part Number into Input Box with Visual Effects
 function setPartNumber(code, source = '스캔 완료') {
-  partNoInput.value = code;
-  showPartInfo(code);
+  const extracted = extractStandardPartNo(code);
+  partNoInput.value = extracted;
+  showPartInfo(extracted);
 
   // Highlight animation
   partNoInput.classList.remove('flash-success');
@@ -166,12 +202,6 @@ function setPartNumber(code, source = '스캔 완료') {
   audioController.triggerHaptic();
 }
 
-// Known Barcode to Part Number Mapping Dictionary
-const PART_NO_MAP = {
-  '712694601071001': '88840DC020C2N',
-  '7147965121710060': '88840DC020C2N'
-};
-
 // Handle Barcode Detection Event
 function handleBarcodeScanned(decodedText, decodedResult) {
   const now = Date.now();
@@ -182,12 +212,11 @@ function handleBarcodeScanned(decodedText, decodedResult) {
   lastScannedCode = decodedText;
   lastScanTimestamp = now;
 
-  let finalPartNo = decodedText;
-  if (PART_NO_MAP[decodedText]) {
-    finalPartNo = PART_NO_MAP[decodedText];
-    showToast(`바코드 ➔ 품번 (${finalPartNo}) [${selectedEvent}] 매핑 완료`);
+  const finalPartNo = extractStandardPartNo(decodedText);
+  if (decodedText !== finalPartNo) {
+    showToast(`바코드 (${decodedText}) ➔ 품번 (${finalPartNo}) [${selectedEvent}] 추출 완료`);
   } else {
-    showToast(`품번 스캔 완료: ${decodedText} [${selectedEvent}]`);
+    showToast(`품번 스캔 완료: ${finalPartNo} [${selectedEvent}]`);
   }
 
   setPartNumber(finalPartNo, 'Code 128 스캔');
@@ -332,12 +361,12 @@ function initEvents() {
     btnIn.classList.remove('active');
   });
 
-  // PartNo Change Listener for Master Lookup
+  // PartNo Change Listener for Master Lookup & Auto Extract
   partNoInput.addEventListener('input', (e) => {
     showPartInfo(e.target.value.trim());
   });
 
-  // Event Buttons (P0, P1, P2 M, SOP) Selection Listener
+  // Event Buttons (P0, P1, P2, M, SOP) Selection Listener
   eventBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       eventBtns.forEach(b => b.classList.remove('active'));
@@ -375,7 +404,8 @@ function initEvents() {
     try {
       const code = await scannerInstance.scanImageFile(file);
       setPartNumber(code, '갤러리 스캔');
-      showToast(`품번 스캔 완료: ${code} [${selectedEvent}]`);
+      const finalCode = extractStandardPartNo(code);
+      showToast(`품번 스캔 완료: ${finalCode} [${selectedEvent}]`);
     } catch (err) {
       showToast(err.message || '바코드를 인지하지 못했습니다.');
     } finally {

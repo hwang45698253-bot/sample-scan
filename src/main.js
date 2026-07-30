@@ -130,21 +130,15 @@ function showPartInfo(partNo) {
   partInfoBox.textContent = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
 }
 
-// Known Barcode Fallback Mapping Dictionary
-const PART_NO_MAP = {
-  '712694601071001': '88840DC020C2N',
-  '7147965121710060': '88840DC020C2N'
-};
-
 /**
- * Smart Part Number Pattern Extractor
- * Matches Part Numbers starting with '888' or '898' (10 to 13 alphanumeric chars, with optional 'P' prefix)
+ * Dynamic Part Number Pattern Extractor
+ * Matches 888 / 898 Part Numbers (10 to 13 chars), strips 'P' prefix, or returns exact scanned text as-is.
  */
 function extractStandardPartNo(raw) {
   if (!raw) return '';
   const clean = String(raw).trim().toUpperCase();
 
-  // 1. Check for 888 or 898 prefix pattern (10 to 13 characters: e.g. 88840DC020C2N, 89810DC010)
+  // 1. Check for 888 or 898 pattern (10 to 13 alphanumeric characters: e.g. 88840DC020C2N, 89810DC010)
   const match888898 = clean.match(/(888|898)[A-Z0-9]{7,10}/);
   if (match888898) {
     return match888898[0];
@@ -156,12 +150,7 @@ function extractStandardPartNo(raw) {
     if (pMatch) return pMatch[0];
   }
 
-  // 3. Fallback map for specific supplier barcode IDs
-  if (PART_NO_MAP[clean]) {
-    return PART_NO_MAP[clean];
-  }
-
-  // 4. If no 888/898 pattern found, return cleaned alphanumeric barcode string
+  // 3. Return exact scanned barcode text as-is (No hardcoded overrides!)
   return clean.replace(/[^A-Za-z0-9-]/g, '');
 }
 

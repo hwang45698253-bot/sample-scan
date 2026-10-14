@@ -21,6 +21,8 @@ const partNoInput = document.getElementById('partNoInput');
 const copyPartNoBtn = document.getElementById('copyPartNoBtn');
 const clearPartNoBtn = document.getElementById('clearPartNoBtn');
 const partInfoBox = document.getElementById('partInfo');
+const partIdBox = document.getElementById('partIdBox');
+const partIdValue = document.getElementById('partIdValue');
 
 const btnIn = document.getElementById('btn-in');
 const btnOut = document.getElementById('btn-out');
@@ -68,10 +70,10 @@ let masterRows = [
 ];
 let stockRows = [];
 
-// 파트ID매핑 시트 (A열: 스캔값 앞 6자리, B열: 표시할 값)
+// 파트ID매핑 시트: 스캔값 앞 6자리 = part_id(A열) → part_no(B열). 서버에서 ID 하나씩 조회
 const PART_ID_LEN = 6;
-const PART_ID_CACHE_KEY = 'partIdMapCache_v1';
-let partIdMap = new Map();
+const partIdCache = new Map(); // id → Promise<[{ partNo, partName }]>
+let partIdRequestSeq = 0;
 let selectedStockKeys = {};
 
 // Toast Utility
@@ -122,54 +124,80 @@ function lookupPart(partNo) {
   return { car, name };
 }
 
-function setPartIdMap(rows) {
-  const map = new Map();
-  (rows || []).forEach(r => {
-    const key = normPartNo(Array.isArray(r) ? r[0] : colAt(r, 0));
-    const val = String(Array.isArray(r) ? (r[1] == null ? '' : r[1]) : colAt(r, 1)).trim();
-    if (key && val) map.set(key, val);
-  });
-  partIdMap = map;
-}
-
-// 스캔값 앞 6자리 → 파트ID매핑 B열 값. 원본 스캔값 우선, 없으면 추출된 품번으로 재시도
-function resolvePartId(...codes) {
-  for (const code of codes) {
+// 스캔값(원본 우선, 추출된 품번 차선)의 앞 6자리 후보
+function partIdKeys(...codes) {
+  const keys = [];
+  codes.forEach(code => {
     const key = normPartNo(code).slice(0, PART_ID_LEN);
-    if (key.length === PART_ID_LEN && partIdMap.has(key)) return partIdMap.get(key);
-  }
-  return '';
+    if (key.length === PART_ID_LEN && !keys.includes(key)) keys.push(key);
+  });
+  return keys;
 }
 
-async function loadPartIdMap() {
-  try {
-    const res = await fetch(API_URL + '?action=partmap');
-    const data = await res.json();
-    if (data && Array.isArray(data.partmap)) {
-      setPartIdMap(data.partmap);
-      try { localStorage.setItem(PART_ID_CACHE_KEY, JSON.stringify(data.partmap)); } catch (e) {}
-      return;
-    }
-  } catch (err) {
-    console.warn('파트ID매핑 fetch 실패, 캐시 사용:', err);
+function fetchPartId(id) {
+  if (!partIdCache.has(id)) {
+    const req = fetch(`${API_URL}?action=resolve&id=${encodeURIComponent(id)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data || !data.ok) throw new Error((data && data.error) || '파트ID 조회 실패');
+        return Array.isArray(data.matches) ? data.matches : [];
+      });
+    partIdCache.set(id, req);
+    req.catch(() => partIdCache.delete(id)); // 실패는 캐시하지 않고 다음에 재시도
   }
-  try {
-    setPartIdMap(JSON.parse(localStorage.getItem(PART_ID_CACHE_KEY) || '[]'));
-  } catch (e) {}
+  return partIdCache.get(id);
+}
+
+async function resolvePartId(...codes) {
+  for (const id of partIdKeys(...codes)) {
+    const matches = await fetchPartId(id);
+    if (matches.length) return matches;
+  }
+  return [];
+}
+
+function showPartIdMapping(text, state) {
+  if (!partIdBox) return;
+  partIdBox.classList.toggle('hidden', state === 'hidden');
+  partIdBox.classList.toggle('matched', state === 'matched');
+  partIdValue.textContent = text;
+}
+
+function renderMasterInfo(partNo) {
+  const info = lookupPart(partNo);
+  const parts = [info.car, info.name].filter(Boolean);
+  partInfoBox.textContent = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
 }
 
 function showPartInfo(partNo, raw = partNo) {
   if (!partInfoBox) return;
+  const seq = ++partIdRequestSeq;
   if (!partNo) {
     partInfoBox.textContent = '';
+    showPartIdMapping('', 'hidden');
     return;
   }
-  const info = lookupPart(partNo);
-  const parts = [info.car, info.name].filter(Boolean);
-  let text = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
-  const mapped = resolvePartId(raw, partNo);
-  if (mapped) text = '🔖 ' + mapped + '  ' + text;
-  partInfoBox.textContent = text;
+  renderMasterInfo(partNo);
+
+  if (!partIdKeys(raw, partNo).length) {
+    showPartIdMapping('매핑 없음 (6자리 미만)', 'none');
+    return;
+  }
+  showPartIdMapping('조회 중...', 'loading');
+  resolvePartId(raw, partNo).then(matches => {
+    if (seq !== partIdRequestSeq) return; // 그 사이 다른 값으로 바뀜
+    if (!matches.length) {
+      showPartIdMapping('매핑 없음 (파트ID매핑 시트에 미등록)', 'none');
+      return;
+    }
+    const partNos = [...new Set(matches.map(m => m.partNo))];
+    showPartIdMapping(partNos.join(' / '), 'matched');
+    renderMasterInfo(partNos[0]); // 매핑된 품번 기준으로 차종/품명 표시
+  }).catch(err => {
+    if (seq !== partIdRequestSeq) return;
+    console.warn('파트ID 조회 실패:', err);
+    showPartIdMapping('조회 실패 (네트워크 확인)', 'error');
+  });
 }
 
 /**
@@ -234,12 +262,10 @@ function handleBarcodeScanned(decodedText, decodedResult) {
   const formatName = decodedResult?.result?.format?.formatName || 'Code 128';
   const finalPartNo = extractStandardPartNo(decodedText);
 
-  const mapped = resolvePartId(decodedText, finalPartNo);
-  const mappedText = mapped ? ` → ${mapped}` : '';
   if (decodedText !== finalPartNo) {
-    showToast(`✅ 스캔 성공: ${finalPartNo}${mappedText} (RAW: ${decodedText})`);
+    showToast(`✅ 스캔 성공: ${finalPartNo} (RAW: ${decodedText})`);
   } else {
-    showToast(`✅ 스캔 성공: ${finalPartNo}${mappedText}`);
+    showToast(`✅ 스캔 성공: ${finalPartNo}`);
   }
 
   setPartNumber(decodedText, `${formatName} 스캔`);
@@ -536,7 +562,7 @@ function initEvents() {
     // Clear Inputs for Next Scan
     partNoInput.value = '';
     partNoInput.classList.remove('filled');
-    partInfoBox.textContent = '';
+    showPartInfo('');
     qtyInput.value = 1;
     memoInput.value = '';
 
@@ -559,7 +585,7 @@ function initEvents() {
 
   clearPartNoBtn.addEventListener('click', () => {
     partNoInput.value = '';
-    partInfoBox.textContent = '';
+    showPartInfo('');
     scanStatusBadge.textContent = '대기 중';
     scanStatusBadge.className = 'status-indicator ready';
     scanTimeInfo.classList.add('hidden');
@@ -654,7 +680,6 @@ function initEvents() {
 function initApp() {
   initEvents();
   loadMasterData();
-  loadPartIdMap();
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

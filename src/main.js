@@ -21,6 +21,8 @@ const partNoInput = document.getElementById('partNoInput');
 const copyPartNoBtn = document.getElementById('copyPartNoBtn');
 const clearPartNoBtn = document.getElementById('clearPartNoBtn');
 const partInfoBox = document.getElementById('partInfo');
+const partIdBox = document.getElementById('partIdBox');
+const partIdValue = document.getElementById('partIdValue');
 
 const btnIn = document.getElementById('btn-in');
 const btnOut = document.getElementById('btn-out');
@@ -158,18 +160,24 @@ async function loadPartIdMap() {
   } catch (e) {}
 }
 
+function showPartIdMapping(mapped, hasPartNo) {
+  if (!partIdBox) return;
+  partIdBox.classList.toggle('hidden', !hasPartNo);
+  partIdBox.classList.toggle('matched', !!mapped);
+  partIdValue.textContent = mapped || '매핑 없음 (파트ID매핑 시트에 미등록)';
+}
+
 function showPartInfo(partNo, raw = partNo) {
   if (!partInfoBox) return;
   if (!partNo) {
     partInfoBox.textContent = '';
+    showPartIdMapping('', false);
     return;
   }
   const info = lookupPart(partNo);
   const parts = [info.car, info.name].filter(Boolean);
-  let text = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
-  const mapped = resolvePartId(raw, partNo);
-  if (mapped) text = '🔖 ' + mapped + '  ' + text;
-  partInfoBox.textContent = text;
+  partInfoBox.textContent = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
+  showPartIdMapping(resolvePartId(raw, partNo), true);
 }
 
 /**
@@ -536,7 +544,7 @@ function initEvents() {
     // Clear Inputs for Next Scan
     partNoInput.value = '';
     partNoInput.classList.remove('filled');
-    partInfoBox.textContent = '';
+    showPartInfo('');
     qtyInput.value = 1;
     memoInput.value = '';
 
@@ -559,7 +567,7 @@ function initEvents() {
 
   clearPartNoBtn.addEventListener('click', () => {
     partNoInput.value = '';
-    partInfoBox.textContent = '';
+    showPartInfo('');
     scanStatusBadge.textContent = '대기 중';
     scanStatusBadge.className = 'status-indicator ready';
     scanTimeInfo.classList.add('hidden');

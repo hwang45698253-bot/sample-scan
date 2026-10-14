@@ -514,6 +514,45 @@ body {
   margin-top: 2px;
 }
 
+/* 파트ID매핑 결과 박스 (Part No 입력창 아래) */
+.part-id-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--glass-border);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
+.part-id-box.matched {
+  border-style: solid;
+  border-color: #a78bfa;
+  color: #e9e5ff;
+}
+
+.part-id-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.part-id-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-align: right;
+  word-break: break-all;
+}
+
+.part-id-box:not(.matched) .part-id-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 /* Type Toggle Section (입고 / 출고) */
 .type-toggle-section {
   display: flex;

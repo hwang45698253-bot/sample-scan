@@ -7,9 +7,10 @@
     <meta name="description" content="모바일 카메라를 사용한 실시간 Code 128 품번 스캔 웹 앱" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="./assets/index-BqUHbE7z.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Bt-Sj73w.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+    <script type="module" crossorigin src="./assets/index-9AB8zsuK.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-D2oX0fNb.css">
   </head>
   <body>
     <div id="app" class="app-container">
@@ -130,6 +131,12 @@
                 </svg>
               </button>
             </div>
+          </div>
+
+          <!-- 파트ID매핑 결과 박스 (스캔값 앞 6자리 → 시트 B열 값) -->
+          <div id="partIdBox" class="part-id-box hidden">
+            <span class="part-id-label">파트ID 매핑</span>
+            <span id="partIdValue" class="part-id-value"></span>
           </div>
 
           <!-- Part Info Lookup Box -->

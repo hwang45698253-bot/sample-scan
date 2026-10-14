@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tunnel output
+cloudflare_url.txt
+tunnel_url.txt

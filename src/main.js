@@ -58,8 +58,6 @@ const adminMsgBox = document.getElementById('adminMsg');
 
 // App State
 let scannerInstance = null;
-let lastScannedCode = null;
-let lastScanTimestamp = 0;
 let selectedEvent = 'P0';
 let currentType = '입고';
 
@@ -132,7 +130,7 @@ function showPartInfo(partNo) {
 
 /**
  * Dynamic Part Number Pattern Extractor
- * Matches 888 / 898 Part Numbers (10 to 13 chars), strips 'P' prefix, or returns exact scanned text as-is.
+ * Matches 888 / 898 Part Numbers (10 to 13 chars; a leading 'P' is dropped by the match), or returns exact scanned text as-is.
  */
 function extractStandardPartNo(raw) {
   if (!raw) return '';
@@ -144,13 +142,7 @@ function extractStandardPartNo(raw) {
     return match888898[0];
   }
 
-  // 2. Check for 'P' prefix before 888/898 (e.g. P88840DC020C2N -> 88840DC020C2N)
-  if (clean.startsWith('P')) {
-    const pMatch = clean.slice(1).match(/(888|898)[A-Z0-9]{7,10}/);
-    if (pMatch) return pMatch[0];
-  }
-
-  // 3. Return exact scanned barcode text as-is (No hardcoded overrides!)
+  // 2. Return exact scanned barcode text as-is (No hardcoded overrides!)
   return clean.replace(/[^A-Za-z0-9-]/g, '');
 }
 
@@ -210,10 +202,6 @@ function handleBarcodeScanned(decodedText, decodedResult) {
 
 // Modal Controllers
 async function openScannerModal() {
-  // CRITICAL: Reset duplicate detection state so fresh scans are never blocked
-  lastScannedCode = null;
-  lastScanTimestamp = 0;
-
   scannerModal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 

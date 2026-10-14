@@ -3,7 +3,7 @@ import { audioController } from './audio.js';
 import { BarcodeScanner } from './scanner.js';
 
 // API & Master Constants (from index (1).html)
-const API_URL = 'https://script.google.com/macros/s/AKfycbxeXfzUT9mrhi9CwxJqnurzrnusfkXNSOTvoN9SrAicNB8hIJpWmUq-zh5eShfkIw0c/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwfz2SmT8_92HcEZLYB3kk4iHXQQZD-PDY00MGz664pb0_V0BMcmXovHGsQP99HCY-c/exec';
 const API_TOKEN = 'rd-sample-2026-7f3a9c1b';
 
 // DOM Element Selectors - Scan View

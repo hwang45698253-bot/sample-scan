@@ -67,6 +67,11 @@ let masterRows = [
   ['C2', 'K5', '99210', 'Camera Sensor Unit']
 ];
 let stockRows = [];
+
+// 파트ID매핑 시트 (A열: 스캔값 앞 6자리, B열: 표시할 값)
+const PART_ID_LEN = 6;
+const PART_ID_CACHE_KEY = 'partIdMapCache_v1';
+let partIdMap = new Map();
 let selectedStockKeys = {};
 
 // Toast Utility
@@ -117,7 +122,43 @@ function lookupPart(partNo) {
   return { car, name };
 }
 
-function showPartInfo(partNo) {
+function setPartIdMap(rows) {
+  const map = new Map();
+  (rows || []).forEach(r => {
+    const key = normPartNo(Array.isArray(r) ? r[0] : colAt(r, 0));
+    const val = String(Array.isArray(r) ? (r[1] == null ? '' : r[1]) : colAt(r, 1)).trim();
+    if (key && val) map.set(key, val);
+  });
+  partIdMap = map;
+}
+
+// 스캔값 앞 6자리 → 파트ID매핑 B열 값. 원본 스캔값 우선, 없으면 추출된 품번으로 재시도
+function resolvePartId(...codes) {
+  for (const code of codes) {
+    const key = normPartNo(code).slice(0, PART_ID_LEN);
+    if (key.length === PART_ID_LEN && partIdMap.has(key)) return partIdMap.get(key);
+  }
+  return '';
+}
+
+async function loadPartIdMap() {
+  try {
+    const res = await fetch(API_URL + '?action=partmap');
+    const data = await res.json();
+    if (data && Array.isArray(data.partmap)) {
+      setPartIdMap(data.partmap);
+      try { localStorage.setItem(PART_ID_CACHE_KEY, JSON.stringify(data.partmap)); } catch (e) {}
+      return;
+    }
+  } catch (err) {
+    console.warn('파트ID매핑 fetch 실패, 캐시 사용:', err);
+  }
+  try {
+    setPartIdMap(JSON.parse(localStorage.getItem(PART_ID_CACHE_KEY) || '[]'));
+  } catch (e) {}
+}
+
+function showPartInfo(partNo, raw = partNo) {
   if (!partInfoBox) return;
   if (!partNo) {
     partInfoBox.textContent = '';
@@ -125,7 +166,10 @@ function showPartInfo(partNo) {
   }
   const info = lookupPart(partNo);
   const parts = [info.car, info.name].filter(Boolean);
-  partInfoBox.textContent = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
+  let text = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
+  const mapped = resolvePartId(raw, partNo);
+  if (mapped) text = '🔖 ' + mapped + '  ' + text;
+  partInfoBox.textContent = text;
 }
 
 /**
@@ -164,7 +208,7 @@ async function loadMasterData() {
 function setPartNumber(code, source = '스캔 완료') {
   const extracted = extractStandardPartNo(code);
   partNoInput.value = extracted;
-  showPartInfo(extracted);
+  showPartInfo(extracted, code);
 
   // Highlight animation
   partNoInput.classList.remove('flash-success');
@@ -190,13 +234,15 @@ function handleBarcodeScanned(decodedText, decodedResult) {
   const formatName = decodedResult?.result?.format?.formatName || 'Code 128';
   const finalPartNo = extractStandardPartNo(decodedText);
 
+  const mapped = resolvePartId(decodedText, finalPartNo);
+  const mappedText = mapped ? ` → ${mapped}` : '';
   if (decodedText !== finalPartNo) {
-    showToast(`✅ 스캔 성공: ${finalPartNo} (RAW: ${decodedText})`);
+    showToast(`✅ 스캔 성공: ${finalPartNo}${mappedText} (RAW: ${decodedText})`);
   } else {
-    showToast(`✅ 스캔 성공: ${finalPartNo}`);
+    showToast(`✅ 스캔 성공: ${finalPartNo}${mappedText}`);
   }
 
-  setPartNumber(finalPartNo, `${formatName} 스캔`);
+  setPartNumber(decodedText, `${formatName} 스캔`);
   closeScannerModal();
 }
 
@@ -608,6 +654,7 @@ function initEvents() {
 function initApp() {
   initEvents();
   loadMasterData();
+  loadPartIdMap();
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

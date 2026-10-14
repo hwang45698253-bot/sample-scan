@@ -74,6 +74,8 @@ let stockRows = [];
 const PART_ID_LEN = 6;
 const partIdCache = new Map(); // id → Promise<[{ partNo, partName }]>
 let partIdRequestSeq = 0;
+// 스캔값이 매핑 품번으로 자동 변환됐을 때의 기록 { raw: 원본 스캔값, partNo: 변환된 품번 }
+let autofill = null;
 let selectedStockKeys = {};
 
 // Toast Utility
@@ -169,9 +171,10 @@ function renderMasterInfo(partNo) {
   partInfoBox.textContent = parts.length ? '📋 ' + parts.join(' / ') : '⚠️ 품번마스터 미등록 품번 (신규)';
 }
 
-function showPartInfo(partNo, raw = partNo) {
+function showPartInfo(partNo, raw = partNo, autofillMapped = false) {
   if (!partInfoBox) return;
   const seq = ++partIdRequestSeq;
+  autofill = null;
   if (!partNo) {
     partInfoBox.textContent = '';
     showPartIdMapping('', 'hidden');
@@ -193,6 +196,13 @@ function showPartInfo(partNo, raw = partNo) {
     const partNos = [...new Set(matches.map(m => m.partNo))];
     showPartIdMapping(partNos.join(' / '), 'matched');
     renderMasterInfo(partNos[0]); // 매핑된 품번 기준으로 차종/품명 표시
+
+    // 스캔으로 들어온 값이고 매핑 품번이 하나로 정해지면 입력창을 그 품번으로 교체
+    if (autofillMapped && partNos.length === 1 && partNoInput.value.trim() === partNo) {
+      autofill = { raw: String(raw).trim(), partNo: partNos[0] };
+      partNoInput.value = partNos[0];
+      showToast(`🔖 품번 매핑: ${partNos[0]}`);
+    }
   }).catch(err => {
     if (seq !== partIdRequestSeq) return;
     console.warn('파트ID 조회 실패:', err);
@@ -236,7 +246,7 @@ async function loadMasterData() {
 function setPartNumber(code, source = '스캔 완료') {
   const extracted = extractStandardPartNo(code);
   partNoInput.value = extracted;
-  showPartInfo(extracted, code);
+  showPartInfo(extracted, code, true);
 
   // Highlight animation
   partNoInput.classList.remove('flash-success');
@@ -521,7 +531,12 @@ function initEvents() {
   savePartNoBtn.addEventListener('click', async () => {
     const partNo = partNoInput.value.trim();
     const qty = Number(qtyInput.value) || 1;
-    const memo = memoInput.value.trim();
+    let memo = memoInput.value.trim();
+
+    // 스캔값이 매핑 품번으로 변환된 경우 원본 스캔값을 비고에 남김
+    if (autofill && autofill.partNo === partNo) {
+      memo = [`스캔: ${autofill.raw}`, memo].filter(Boolean).join(' / ');
+    }
 
     if (!partNo) {
       showToast('품번을 스캔하거나 입력해 주세요.');

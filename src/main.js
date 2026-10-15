@@ -13,8 +13,6 @@ const adminBtn = document.getElementById('adminBtn');
 const backBtn = document.getElementById('backBtn');
 
 const startScanBtn = document.getElementById('startScanBtn');
-const galleryScanBtn = document.getElementById('galleryScanBtn');
-const galleryFileInput = document.getElementById('galleryFileInput');
 const cameraDeviceSelect = document.getElementById('cameraDeviceSelect');
 
 const partNoInput = document.getElementById('partNoInput');
@@ -30,7 +28,6 @@ const btnIn = document.getElementById('btn-in');
 const btnOut = document.getElementById('btn-out');
 const qtyInput = document.getElementById('qtyInput');
 const memoInput = document.getElementById('memoInput');
-const savePartNoBtn = document.getElementById('savePartNoBtn');
 const keepScanningChk = document.getElementById('keepScanning');
 
 const scanStatusBadge = document.getElementById('scanStatusBadge');
@@ -63,7 +60,7 @@ const adminMsgBox = document.getElementById('adminMsg');
 // App State
 let scannerInstance = null;
 let selectedEvent = 'P0';
-let currentType = '입고';
+let isSaving = false;
 
 let masterRows = [
   ['DC', 'JG1', '88840', 'Front Bumper Sensor Module'],
@@ -419,6 +416,76 @@ async function postApi(payload) {
   return data;
 }
 
+// 입고/출고 저장 (버튼을 누르면 바로 실행)
+async function savePart(type, btn) {
+  if (isSaving) return;
+
+  const partNo = partNoInput.value.trim();
+  const qty = Number(qtyInput.value) || 1;
+  let memo = memoInput.value.trim();
+
+  if (!partNo) {
+    showToast('품번을 스캔하거나 입력해 주세요.');
+    partNoInput.focus();
+    return;
+  }
+
+  // 스캔값이 매핑 품번으로 변환된 경우 원본 스캔값을 비고에 남김
+  if (autofill && autofill.partNo === partNo) {
+    memo = [`스캔: ${autofill.raw}`, memo].filter(Boolean).join(' / ');
+  }
+
+  isSaving = true;
+  btnIn.disabled = true;
+  btnOut.disabled = true;
+
+  audioController.playScanBeep();
+  audioController.triggerHaptic();
+
+  btn.classList.remove('saved-flash');
+  void btn.offsetWidth;
+  btn.classList.add('saved-flash');
+
+  // Add entry to stockRows
+  stockRows.push({
+    key: partNo + '_' + Date.now(),
+    partNo,
+    type,
+    qty,
+    event: selectedEvent,
+    memo,
+    days: 0
+  });
+
+  const payload = { action: 'add', partNo, type, qty, event: selectedEvent, memo };
+
+  try {
+    await postApi(payload);
+    showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${selectedEvent})`);
+  } catch (err) {
+    showToast(`✅ ${type} 저장 완료: ${partNo}`);
+  }
+
+  scanStatusBadge.textContent = `${type} 저장 완료 [${selectedEvent}]`;
+  scanStatusBadge.className = 'status-indicator scanned';
+
+  // Clear Inputs for Next Scan
+  partNoInput.value = '';
+  partNoInput.classList.remove('filled');
+  showPartInfo('');
+  qtyInput.value = 1;
+  memoInput.value = '';
+
+  isSaving = false;
+  btnIn.disabled = false;
+  btnOut.disabled = false;
+
+  // Auto Trigger Next Scan if keepScanning check is enabled
+  if (keepScanningChk.checked) {
+    setTimeout(() => openScannerModal(), 400);
+  }
+}
+
 // Event Listeners Registration
 function initEvents() {
   // Navigation between Scan View and Admin Settings View
@@ -434,19 +501,6 @@ function initEvents() {
     adminView.classList.add('hidden');
     scanView.classList.remove('hidden');
     window.scrollTo(0, 0);
-  });
-
-  // 입고 / 출고 Toggle Buttons
-  btnIn.addEventListener('click', () => {
-    currentType = '입고';
-    btnIn.classList.add('active');
-    btnOut.classList.remove('active');
-  });
-
-  btnOut.addEventListener('click', () => {
-    currentType = '출고';
-    btnOut.classList.add('active');
-    btnIn.classList.remove('active');
   });
 
   // PartNo Change Listener for Master Lookup & Auto Extract
@@ -472,33 +526,6 @@ function initEvents() {
   startScanBtn.addEventListener('click', () => {
     audioController.init();
     openScannerModal();
-  });
-
-  // Gallery File Scan Button
-  galleryScanBtn.addEventListener('click', () => {
-    audioController.init();
-    galleryFileInput.click();
-  });
-
-  galleryFileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    showToast('사진 이미지 분석 중...');
-    if (!scannerInstance) {
-      scannerInstance = new BarcodeScanner('interactiveScanner', handleBarcodeScanned);
-    }
-
-    try {
-      const code = await scannerInstance.scanImageFile(file);
-      setPartNumber(code, '갤러리 스캔');
-      const finalCode = extractStandardPartNo(code);
-      showToast(`품번 스캔 완료: ${finalCode} [${selectedEvent}]`);
-    } catch (err) {
-      showToast(err.message || '바코드를 인지하지 못했습니다.');
-    } finally {
-      galleryFileInput.value = '';
-    }
   });
 
   // Close Scanner Modal
@@ -538,65 +565,9 @@ function initEvents() {
     }
   });
 
-  // Save Button Handler (with API integration + Keep Scanning support)
-  savePartNoBtn.addEventListener('click', async () => {
-    const partNo = partNoInput.value.trim();
-    const qty = Number(qtyInput.value) || 1;
-    let memo = memoInput.value.trim();
-
-    // 스캔값이 매핑 품번으로 변환된 경우 원본 스캔값을 비고에 남김
-    if (autofill && autofill.partNo === partNo) {
-      memo = [`스캔: ${autofill.raw}`, memo].filter(Boolean).join(' / ');
-    }
-
-    if (!partNo) {
-      showToast('품번을 스캔하거나 입력해 주세요.');
-      partNoInput.focus();
-      return;
-    }
-
-    audioController.playScanBeep();
-    audioController.triggerHaptic();
-
-    savePartNoBtn.classList.remove('saved-flash');
-    void savePartNoBtn.offsetWidth;
-    savePartNoBtn.classList.add('saved-flash');
-
-    // Add entry to stockRows
-    stockRows.push({
-      key: partNo + '_' + Date.now(),
-      partNo,
-      type: currentType,
-      qty,
-      event: selectedEvent,
-      memo,
-      days: 0
-    });
-
-    const payload = { action: 'add', partNo, type: currentType, qty, event: selectedEvent, memo };
-
-    try {
-      await postApi(payload);
-      showToast(`✅ 저장 완료: ${partNo} / ${currentType} / ${qty}개 (${selectedEvent})`);
-    } catch (err) {
-      showToast(`✅ 저장 완료: ${partNo} (${currentType})`);
-    }
-
-    scanStatusBadge.textContent = `저장 완료 [${selectedEvent}]`;
-    scanStatusBadge.className = 'status-indicator scanned';
-
-    // Clear Inputs for Next Scan
-    partNoInput.value = '';
-    partNoInput.classList.remove('filled');
-    showPartInfo('');
-    qtyInput.value = 1;
-    memoInput.value = '';
-
-    // Auto Trigger Next Scan if keepScanning check is enabled
-    if (keepScanningChk.checked) {
-      setTimeout(() => openScannerModal(), 400);
-    }
-  });
+  // 입고 / 출고 버튼: 누르면 바로 저장 (API integration + Keep Scanning support)
+  btnIn.addEventListener('click', () => savePart('입고', btnIn));
+  btnOut.addEventListener('click', () => savePart('출고', btnOut));
 
   // Copy & Clear Input Buttons
   copyPartNoBtn.addEventListener('click', () => {

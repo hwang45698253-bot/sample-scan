@@ -209,28 +209,6 @@ body {
   gap: 10px;
 }
 
-.gallery-secondary-btn {
-  width: 100%;
-  padding: 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--glass-border);
-  color: var(--text-main);
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.gallery-secondary-btn:hover {
-  background: var(--bg-surface-elevated);
-  border-color: rgba(59, 130, 246, 0.3);
-}
-
 /* 스캔 버튼(1/5) + 스캔한 품번 박스 */
 .scan-row {
   display: flex;
@@ -479,37 +457,55 @@ body {
   margin-top: 6px;
 }
 
-.save-primary-btn {
-  width: 100%;
-  padding: 16px;
+.type-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.type-action-btn {
+  flex: 1;
+  padding: 18px 12px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
-  color: white;
+  color: #ffffff;
   font-family: var(--font-sans);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
   cursor: pointer;
-  box-shadow: 0 6px 20px var(--success-glow);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
 }
 
-.save-primary-btn:hover {
+.type-action-btn.in {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+}
+
+.type-action-btn.out {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+}
+
+.type-action-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
 }
 
-.save-primary-btn:active {
+.type-action-btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-.save-primary-btn.saved-flash {
+.type-action-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.type-action-btn.saved-flash {
   animation: saveFlash 0.5s ease-out;
+}
+
+@keyframes saveFlash {
+  0% { transform: scale(0.96); filter: brightness(1.5); }
+  100% { transform: scale(1); filter: brightness(1); }
 }
 
 /* Part Info Box (Master Lookup Display) */
@@ -558,46 +554,6 @@ body {
 .part-id-box:not(.matched) .part-id-value {
   font-size: 0.8rem;
   font-weight: 600;
-}
-
-/* Type Toggle Section (입고 / 출고) */
-.type-toggle-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.type-toggle {
-  display: flex;
-  gap: 8px;
-}
-
-.type-toggle button {
-  flex: 1;
-  padding: 12px;
-  font-size: 1rem;
-  font-weight: 800;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border);
-  background: var(--bg-primary);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-#btn-in.active {
-  background: linear-gradient(135deg, #16a34a, #15803d);
-  border-color: transparent;
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
-}
-
-#btn-out.active {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  border-color: transparent;
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
 }
 
 /* Standard Inputs & Labels */

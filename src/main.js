@@ -42,6 +42,12 @@ const torchToggleBtn = document.getElementById('torchToggleBtn');
 const switchCameraBtn = document.getElementById('switchCameraBtn');
 const toastContainer = document.getElementById('toastContainer');
 const loadingOverlay = document.getElementById('loadingOverlay');
+const purposeModal = document.getElementById('purposeModal');
+const purposeSummary = document.getElementById('purposeSummary');
+const purposeInput = document.getElementById('purposeInput');
+const purposeError = document.getElementById('purposeError');
+const purposeCancel = document.getElementById('purposeCancel');
+const purposeOk = document.getElementById('purposeOk');
 const loadingText = document.getElementById('loadingText');
 const eventBtns = document.querySelectorAll('.event-btn');
 
@@ -618,8 +624,40 @@ async function deleteSelectedParts() {
   }
 }
 
+// 출고 용도 입력 모달
+function openPurposeModal() {
+  if (isSaving) return;
+  const partNo = partNoInput.value.trim();
+  if (!partNo) {
+    showToast('품번을 스캔하거나 입력해 주세요.');
+    partNoInput.focus();
+    return;
+  }
+  const qty = Number(qtyInput.value) || 1;
+  purposeSummary.textContent = `${partNo} · ${qty}개`;
+  purposeInput.value = '';
+  purposeError.classList.add('hidden');
+  purposeModal.classList.remove('hidden');
+  setTimeout(() => purposeInput.focus(), 50);
+}
+
+function closePurposeModal() {
+  purposeModal.classList.add('hidden');
+}
+
+function submitPurpose() {
+  const purpose = purposeInput.value.trim();
+  if (!purpose) {
+    purposeError.classList.remove('hidden');
+    purposeInput.focus();
+    return;
+  }
+  closePurposeModal();
+  savePart('출고', btnOut, purpose);
+}
+
 // 입고/출고 저장 (버튼을 누르면 바로 실행)
-async function savePart(type, btn) {
+async function savePart(type, btn, purpose = '') {
   if (isSaving) return;
 
   const partNo = partNoInput.value.trim();
@@ -648,19 +686,21 @@ async function savePart(type, btn) {
   void btn.offsetWidth;
   btn.classList.add('saved-flash');
 
-  const payload = { action: 'add', partNo, type, qty, event: selectedEvent, memo };
+  // 출고는 이벤트 칸에 입력한 용도를 기록하고, 입고는 선택한 이벤트를 기록
+  const eventValue = type === '출고' ? purpose : selectedEvent;
+  const payload = { action: 'add', partNo, type, qty, event: eventValue, memo };
 
   showLoading(`${type} 저장 중...`);
   try {
     await postApi(payload);
-    showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${selectedEvent})`);
+    showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${eventValue})`);
   } catch (err) {
     showToast(`✅ ${type} 저장 완료: ${partNo}`);
   } finally {
     hideLoading();
   }
 
-  scanStatusBadge.textContent = `${type} 저장 완료 [${selectedEvent}]`;
+  scanStatusBadge.textContent = `${type} 저장 완료 [${eventValue}]`;
   scanStatusBadge.className = 'status-indicator scanned';
 
   // Clear Inputs for Next Scan
@@ -761,7 +801,19 @@ function initEvents() {
 
   // 입고 / 출고 버튼: 누르면 바로 저장 (API integration + Keep Scanning support)
   btnIn.addEventListener('click', () => savePart('입고', btnIn));
-  btnOut.addEventListener('click', () => savePart('출고', btnOut));
+  btnOut.addEventListener('click', openPurposeModal);
+
+  // 출고 용도 모달: 저장 / 취소 / Enter / Esc / 바깥 영역 탭
+  purposeOk.addEventListener('click', submitPurpose);
+  purposeCancel.addEventListener('click', closePurposeModal);
+  purposeInput.addEventListener('input', () => purposeError.classList.add('hidden'));
+  purposeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitPurpose(); }
+    else if (e.key === 'Escape') closePurposeModal();
+  });
+  purposeModal.addEventListener('click', (e) => {
+    if (e.target === purposeModal) closePurposeModal();
+  });
 
   // Clear Input Button
   clearPartNoBtn.addEventListener('click', () => {

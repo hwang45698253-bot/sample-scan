@@ -391,9 +391,36 @@ async function postApi(payload) {
 
 // ----- 차종별 재고 (콤보 박스 + 리스트) -----
 
+// 마지막으로 불러온 차종별 재고를 저장해 두었다가, 다음에 열 때 서버 응답을 기다리지 않고 먼저 보여줌
+const CAR_STOCK_CACHE_KEY = 'carStockCache_v1';
+
+function readCarStockCache() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CAR_STOCK_CACHE_KEY) || 'null');
+    if (saved && Array.isArray(saved.cars) && Array.isArray(saved.items)) return saved;
+  } catch (e) {}
+  return null;
+}
+
+function writeCarStockCache() {
+  try {
+    localStorage.setItem(CAR_STOCK_CACHE_KEY, JSON.stringify({ ts: Date.now(), cars: carStock.cars, items: carStock.items }));
+  } catch (e) {}
+}
+
 async function loadCarStock() {
-  carStockState = 'loading';
+  // 처음 열 때는 저장해 둔 결과를 바로 보여주고, 서버에서 최신 값을 받아오는 동안 "갱신 중"으로 표시
+  if (!carStock.cars.length) {
+    const cached = readCarStockCache();
+    if (cached) carStock = { cars: cached.cars, items: cached.items };
+  }
+  const hasData = carStock.cars.length > 0;
+  carStockState = hasData ? 'ready' : 'loading';
+  carStockRefreshBtn.textContent = '⏳ 갱신 중...';
+  carStockRefreshBtn.disabled = true;
   renderCarStock();
+  if (hasData && !carComboList.classList.contains('hidden')) renderCarCombo(false);
+
   try {
     const res = await fetch(API_URL + '?action=stockByCar');
     const data = await res.json();
@@ -402,9 +429,20 @@ async function loadCarStock() {
     }
     carStock = { cars: data.cars, items: data.items };
     carStockState = 'ready';
+    writeCarStockCache();
   } catch (err) {
-    carStockState = 'error';
-    carStockError = (err && err.message) || '재고를 불러오지 못했습니다.';
+    const reason = (err && err.message) || '재고를 불러오지 못했습니다.';
+    if (hasData) {
+      // 저장해 둔 결과는 그대로 보여주고, 최신이 아니라는 점만 알림
+      carStockState = 'ready';
+      showCarMsg(`⚠️ 최신 재고를 불러오지 못해 이전에 조회한 결과를 보여줍니다. (${err instanceof TypeError ? '네트워크 확인' : reason})`, 'err');
+    } else {
+      carStockState = 'error';
+      carStockError = reason;
+    }
+  } finally {
+    carStockRefreshBtn.textContent = '🔄 새로고침';
+    carStockRefreshBtn.disabled = false;
   }
   renderCarStock();
   if (!carComboList.classList.contains('hidden')) renderCarCombo(false);

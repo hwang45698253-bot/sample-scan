@@ -41,6 +41,8 @@ const closeScannerBtn = document.getElementById('closeScannerBtn');
 const torchToggleBtn = document.getElementById('torchToggleBtn');
 const switchCameraBtn = document.getElementById('switchCameraBtn');
 const toastContainer = document.getElementById('toastContainer');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingText = document.getElementById('loadingText');
 const eventBtns = document.querySelectorAll('.event-btn');
 
 // DOM Element Selectors - Admin / Settings View (from index (1).html)
@@ -87,6 +89,27 @@ const partIdCache = new Map(); // id → Promise<[{ partNo, partName }]>
 let partIdRequestSeq = 0;
 // 스캔값이 매핑 품번으로 자동 변환됐을 때의 기록 { raw: 원본 스캔값, partNo: 변환된 품번 }
 let autofill = null;
+
+// 서버와 통신하는 동안 화면을 덮는 로딩 표시 (너무 빨리 깜빡이지 않게 최소 0.35초 유지)
+const LOADING_MIN_MS = 350;
+let loadingShownAt = 0;
+let loadingDepth = 0;
+
+function showLoading(text = '처리 중...') {
+  loadingDepth++;
+  loadingText.textContent = text;
+  if (loadingDepth === 1) loadingShownAt = Date.now();
+  loadingOverlay.classList.remove('hidden');
+}
+
+function hideLoading() {
+  loadingDepth = Math.max(0, loadingDepth - 1);
+  if (loadingDepth > 0) return;
+  const wait = Math.max(0, LOADING_MIN_MS - (Date.now() - loadingShownAt));
+  setTimeout(() => {
+    if (loadingDepth === 0) loadingOverlay.classList.add('hidden');
+  }, wait);
+}
 
 // Toast Utility
 function showToast(message, duration = 2500) {
@@ -541,6 +564,7 @@ async function deleteSelectedParts() {
   carDeleting = true;
   updateCarDeleteUI();
   showCarMsg('삭제 중...');
+  showLoading('삭제 중...');
   try {
     const result = await postApi({ action: 'delete', partNos });
     selectedParts.clear();
@@ -550,6 +574,7 @@ async function deleteSelectedParts() {
   } catch (err) {
     showCarMsg(`❌ 삭제 실패: ${err instanceof TypeError ? '네트워크를 확인해 주세요.' : ((err && err.message) || '다시 시도해 주세요.')}`, 'err');
   } finally {
+    hideLoading();
     carDeleting = false;
     updateCarDeleteUI();
   }
@@ -587,11 +612,14 @@ async function savePart(type, btn) {
 
   const payload = { action: 'add', partNo, type, qty, event: selectedEvent, memo };
 
+  showLoading(`${type} 저장 중...`);
   try {
     await postApi(payload);
     showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${selectedEvent})`);
   } catch (err) {
     showToast(`✅ ${type} 저장 완료: ${partNo}`);
+  } finally {
+    hideLoading();
   }
 
   scanStatusBadge.textContent = `${type} 저장 완료 [${selectedEvent}]`;

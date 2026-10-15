@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 
-    <script type="module" crossorigin src="./assets/index-CT1NqvzT.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DXRzPUUT.css">
+    <script type="module" crossorigin src="./assets/index-iQF8YaZm.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DwExXkbv.css">
   </head>
   <body>
     <div id="app" class="app-container">
@@ -246,6 +246,15 @@
 
       <!-- Toast Notification Container -->
       <div id="toastContainer" class="toast-container"></div>
+
+      <!-- 서버와 통신하는 동안 표시되는 로딩 화면 -->
+      <div id="loadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite" aria-busy="true">
+        <div class="loading-box">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p id="loadingText" class="loading-text">처리 중...</p>
+          <p class="loading-sub">잠시만 기다려 주세요</p>
+        </div>
+      </div>
     </div>
   </body>
 </html>

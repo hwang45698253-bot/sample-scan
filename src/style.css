@@ -605,23 +605,6 @@ body {
   align-items: center;
 }
 
-.w-code {
-  flex: 0 0 100px;
-  text-transform: uppercase;
-}
-
-.accent-btn-sm {
-  padding: 12px 18px;
-  border-radius: var(--radius-md);
-  background: var(--accent-gradient);
-  border: none;
-  color: white;
-  font-weight: 700;
-  font-size: 0.9rem;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
 .outline-btn-full {
   width: 100%;
   padding: 12px;

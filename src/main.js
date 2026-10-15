@@ -44,10 +44,6 @@ const toastContainer = document.getElementById('toastContainer');
 const eventBtns = document.querySelectorAll('.event-btn');
 
 // DOM Element Selectors - Admin / Settings View (from index (1).html)
-const carCodeInput = document.getElementById('carCode');
-const carNameInput = document.getElementById('carName');
-const addCarBtn = document.getElementById('addCarBtn');
-const carListEl = document.getElementById('carList');
 
 const loadStockBtn = document.getElementById('loadStockBtn');
 const stockSearchInput = document.getElementById('stockSearch');
@@ -259,7 +255,6 @@ async function loadMasterData() {
   } catch (err) {
     console.warn('API Master fetch fallback to local storage master:', err);
   }
-  renderCarList();
 }
 
 // Set Part Number into Input Box with Visual Effects
@@ -366,24 +361,6 @@ function escapeHtml(str) {
 }
 
 // --- Admin / Settings Page Functions (from index (1).html) ---
-
-function renderCarList() {
-  if (!carListEl) return;
-  const rows = masterRows.map(r => {
-    return Array.isArray(r) 
-      ? { code: r[0], name: r[1] } 
-      : { code: colAt(r, 0), name: colAt(r, 1) };
-  }).filter(r => r.code);
-
-  if (!rows.length) {
-    carListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">등록된 차종코드가 없습니다.</div>';
-    return;
-  }
-  const latest = rows.slice(-5).reverse();
-  carListEl.innerHTML = `<table><thead><tr><th style="width:80px;">코드</th><th>차종명</th></tr></thead><tbody>` +
-    latest.map(r => `<tr><td><b>${escapeHtml(r.code)}</b></td><td>${escapeHtml(r.name)}</td></tr>`).join('') +
-    `</tbody></table>`;
-}
 
 function renderStockList() {
   if (!stockListEl) return;
@@ -601,7 +578,6 @@ function initEvents() {
     scanView.classList.add('hidden');
     adminView.classList.remove('hidden');
     showAdminMsg('');
-    renderCarList();
     loadCarStock();
     window.scrollTo(0, 0);
   });
@@ -751,34 +727,6 @@ function initEvents() {
   carStockRefreshBtn.addEventListener('click', loadCarStock);
 
   // --- Admin View Event Listeners (from index (1).html) ---
-
-  addCarBtn.addEventListener('click', async function () {
-    const code = carCodeInput.value.trim().toUpperCase();
-    const name = carNameInput.value.trim();
-    if (!code || !name) {
-      showAdminMsg('코드와 차종명을 입력해 주세요.', 'err');
-      return;
-    }
-
-    this.disabled = true;
-    showAdminMsg('차종 코드 추가 중...');
-
-    masterRows.push([code, name, '', '']);
-    renderCarList();
-
-    try {
-      await postApi({ action: 'addCarCode', code, name });
-      showAdminMsg('✅ 신규 차종 코드 추가 완료', 'ok');
-      carCodeInput.value = '';
-      carNameInput.value = '';
-    } catch (err) {
-      showAdminMsg('✅ 차종 코드 추가 완료 (로컬 갱신됨)', 'ok');
-      carCodeInput.value = '';
-      carNameInput.value = '';
-    } finally {
-      this.disabled = false;
-    }
-  });
 
   loadStockBtn.addEventListener('click', async () => {
     stockListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">재고 불러오는 중...</div>';

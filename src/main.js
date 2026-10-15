@@ -13,16 +13,12 @@ const adminBtn = document.getElementById('adminBtn');
 const backBtn = document.getElementById('backBtn');
 
 const startScanBtn = document.getElementById('startScanBtn');
-const galleryScanBtn = document.getElementById('galleryScanBtn');
-const galleryFileInput = document.getElementById('galleryFileInput');
 const cameraDeviceSelect = document.getElementById('cameraDeviceSelect');
 
 const partNoInput = document.getElementById('partNoInput');
-const copyPartNoBtn = document.getElementById('copyPartNoBtn');
 const clearPartNoBtn = document.getElementById('clearPartNoBtn');
 const partInfoBox = document.getElementById('partInfo');
 const scanResultBox = document.getElementById('scanResultBox');
-const scanResultValue = document.getElementById('scanResultValue');
 const partIdBox = document.getElementById('partIdBox');
 const partIdValue = document.getElementById('partIdValue');
 
@@ -30,7 +26,6 @@ const btnIn = document.getElementById('btn-in');
 const btnOut = document.getElementById('btn-out');
 const qtyInput = document.getElementById('qtyInput');
 const memoInput = document.getElementById('memoInput');
-const savePartNoBtn = document.getElementById('savePartNoBtn');
 const keepScanningChk = document.getElementById('keepScanning');
 
 const scanStatusBadge = document.getElementById('scanStatusBadge');
@@ -49,28 +44,42 @@ const toastContainer = document.getElementById('toastContainer');
 const eventBtns = document.querySelectorAll('.event-btn');
 
 // DOM Element Selectors - Admin / Settings View (from index (1).html)
-const carCodeInput = document.getElementById('carCode');
-const carNameInput = document.getElementById('carName');
-const addCarBtn = document.getElementById('addCarBtn');
-const carListEl = document.getElementById('carList');
 
-const loadStockBtn = document.getElementById('loadStockBtn');
-const stockSearchInput = document.getElementById('stockSearch');
-const stockListEl = document.getElementById('stockList');
-const disposeBtn = document.getElementById('disposeBtn');
-const adminMsgBox = document.getElementById('adminMsg');
+
+// 차종별 재고 (콤보 박스 + 리스트)
+const carComboEl = document.getElementById('carCombo');
+const carComboInput = document.getElementById('carComboInput');
+const carComboToggle = document.getElementById('carComboToggle');
+const carComboList = document.getElementById('carComboList');
+const carStockSummary = document.getElementById('carStockSummary');
+const carStockListEl = document.getElementById('carStockList');
+const carStockRefreshBtn = document.getElementById('carStockRefreshBtn');
+const carDeleteArea = document.getElementById('carDeleteArea');
+const carDeleteBtn = document.getElementById('carDeleteBtn');
+const carDeleteConfirm = document.getElementById('carDeleteConfirm');
+const carDeleteConfirmText = document.getElementById('carDeleteConfirmText');
+const carDeleteCancel = document.getElementById('carDeleteCancel');
+const carDeleteOk = document.getElementById('carDeleteOk');
+const carStockMsg = document.getElementById('carStockMsg');
 
 // App State
 let scannerInstance = null;
 let selectedEvent = 'P0';
-let currentType = '입고';
+let isSaving = false;
+
+// 차종별 재고: 서버(?action=stockByCar)에서 받은 차종 목록과 입고 중인 품번별 수량
+let carStock = { cars: [], items: [] };
+let carStockState = 'idle'; // idle | loading | ready | error
+let carStockError = '';
+let carComboActive = -1;
+const selectedParts = new Set(); // 체크된 품번 (현재 보이는 리스트 기준)
+let carDeleting = false;
 
 let masterRows = [
   ['DC', 'JG1', '88840', 'Front Bumper Sensor Module'],
   ['EA', 'EV6', '86350', 'Radar Control Assembly'],
   ['C2', 'K5', '99210', 'Camera Sensor Unit']
 ];
-let stockRows = [];
 
 // 파트ID매핑 시트: 스캔값 앞 6자리 = part_id(A열) → part_no(B열). 서버에서 ID 하나씩 조회
 const PART_ID_LEN = 6;
@@ -78,7 +87,6 @@ const partIdCache = new Map(); // id → Promise<[{ partNo, partName }]>
 let partIdRequestSeq = 0;
 // 스캔값이 매핑 품번으로 자동 변환됐을 때의 기록 { raw: 원본 스캔값, partNo: 변환된 품번 }
 let autofill = null;
-let selectedStockKeys = {};
 
 // Toast Utility
 function showToast(message, duration = 2500) {
@@ -91,12 +99,6 @@ function showToast(message, duration = 2500) {
     toast.style.transform = 'translateY(10px)';
     setTimeout(() => toast.remove(), 300);
   }, duration);
-}
-
-function showAdminMsg(text, cls = '') {
-  if (!adminMsgBox) return;
-  adminMsgBox.textContent = text;
-  adminMsgBox.className = 'admin-msg-box ' + cls;
 }
 
 const normPartNo = s => String(s || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -160,11 +162,10 @@ async function resolvePartId(...codes) {
   return [];
 }
 
-// 스캔 버튼 오른쪽 박스: 현재 품번(스캔·변환·직접입력 결과)을 표시
+// 스캔 버튼 오른쪽 입력 박스: 품번이 들어 있으면 강조
 function showScanResult(partNo) {
   if (!scanResultBox) return;
   scanResultBox.classList.toggle('filled', !!partNo);
-  scanResultValue.textContent = partNo || '-';
 }
 
 function showPartIdMapping(text, state) {
@@ -250,7 +251,6 @@ async function loadMasterData() {
   } catch (err) {
     console.warn('API Master fetch fallback to local storage master:', err);
   }
-  renderCarList();
 }
 
 // Set Part Number into Input Box with Visual Effects
@@ -358,59 +358,6 @@ function escapeHtml(str) {
 
 // --- Admin / Settings Page Functions (from index (1).html) ---
 
-function renderCarList() {
-  if (!carListEl) return;
-  const rows = masterRows.map(r => {
-    return Array.isArray(r) 
-      ? { code: r[0], name: r[1] } 
-      : { code: colAt(r, 0), name: colAt(r, 1) };
-  }).filter(r => r.code);
-
-  if (!rows.length) {
-    carListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">등록된 차종코드가 없습니다.</div>';
-    return;
-  }
-  const latest = rows.slice(-5).reverse();
-  carListEl.innerHTML = `<table><thead><tr><th style="width:80px;">코드</th><th>차종명</th></tr></thead><tbody>` +
-    latest.map(r => `<tr><td><b>${escapeHtml(r.code)}</b></td><td>${escapeHtml(r.name)}</td></tr>`).join('') +
-    `</tbody></table>`;
-}
-
-function renderStockList() {
-  if (!stockListEl) return;
-  const q = normPartNo(stockSearchInput.value);
-  const rows = q ? stockRows.filter(s => normPartNo(s.partNo).includes(q)) : stockRows.slice(0, 10);
-
-  if (!rows.length) {
-    stockListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">재고 결과가 없습니다.</div>';
-    updateDisposeBtn();
-    return;
-  }
-
-  stockListEl.innerHTML = `<table><thead><tr>` +
-    `<th style="width:36px;">선택</th><th>품번</th><th style="width:60px;text-align:right;">재고</th></tr></thead><tbody>` +
-    rows.map(s => `<tr><td><input type="checkbox" class="chk-item" data-key="${escapeHtml(s.key || s.partNo)}" ${selectedStockKeys[s.key || s.partNo] ? 'checked' : ''}></td>` +
-      `<td>${escapeHtml(s.partNo)}</td><td style="text-align:right;">${s.qty}</td></tr>`).join('') +
-    `</tbody></table>`;
-
-  document.querySelectorAll('#stockList .chk-item').forEach(c => {
-    c.addEventListener('change', function () {
-      const key = this.dataset.key;
-      if (this.checked) selectedStockKeys[key] = true;
-      else delete selectedStockKeys[key];
-      updateDisposeBtn();
-    });
-  });
-  updateDisposeBtn();
-}
-
-function updateDisposeBtn() {
-  if (!disposeBtn) return;
-  const count = Object.keys(selectedStockKeys).length;
-  disposeBtn.disabled = count === 0;
-  disposeBtn.textContent = count ? `선택 항목(${count}건) 삭제` : '선택 항목 삭제';
-}
-
 async function postApi(payload) {
   const body = JSON.stringify({ token: API_TOKEN, ...payload });
   const res = await fetch(API_URL, { method: 'POST', body });
@@ -419,34 +366,269 @@ async function postApi(payload) {
   return data;
 }
 
+// ----- 차종별 재고 (콤보 박스 + 리스트) -----
+
+async function loadCarStock() {
+  carStockState = 'loading';
+  renderCarStock();
+  try {
+    const res = await fetch(API_URL + '?action=stockByCar');
+    const data = await res.json();
+    if (!data || !data.ok || !Array.isArray(data.cars) || !Array.isArray(data.items)) {
+      throw new Error((data && data.error) || '서버가 차종별 재고를 지원하지 않습니다. Apps Script를 새 버전으로 배포했는지 확인해 주세요.');
+    }
+    carStock = { cars: data.cars, items: data.items };
+    carStockState = 'ready';
+  } catch (err) {
+    carStockState = 'error';
+    carStockError = (err && err.message) || '재고를 불러오지 못했습니다.';
+  }
+  renderCarStock();
+  if (!carComboList.classList.contains('hidden')) renderCarCombo(false);
+}
+
+// 입력한 글자와 일치(정확히 같으면 그 차종만, 아니면 포함)하는 차종들
+function selectedCars() {
+  const q = carComboInput.value.trim().toLowerCase();
+  if (!q) return [];
+  const exact = carStock.cars.filter(c => c.car.toLowerCase() === q);
+  return exact.length ? exact : carStock.cars.filter(c => c.car.toLowerCase().includes(q));
+}
+
+function renderCarCombo(showAll) {
+  const q = showAll ? '' : carComboInput.value.trim().toLowerCase();
+  const options = carStock.cars.filter(c => !q || c.car.toLowerCase().includes(q));
+  if (carComboActive >= options.length) carComboActive = options.length - 1;
+
+  // 입력 중 일치하는 차종이 없으면 드롭다운은 닫고, 안내는 아래 리스트 영역에 표시
+  if (!showAll && q && !options.length) {
+    closeCarCombo();
+    return;
+  }
+
+  if (carStockState === 'loading' && !carStock.cars.length) {
+    carComboList.innerHTML = '<li class="combo-empty">차종을 불러오는 중...</li>';
+  } else if (!options.length) {
+    carComboList.innerHTML = '<li class="combo-empty">일치하는 차종이 없습니다.</li>';
+  } else {
+    const current = carComboInput.value.trim().toLowerCase();
+    carComboList.innerHTML = options.map((c, i) =>
+      `<li role="option" data-car="${escapeHtml(c.car)}" class="${i === carComboActive ? 'active' : ''}${c.car.toLowerCase() === current ? ' selected' : ''}">` +
+      `<span>${escapeHtml(c.car)}</span><small>${c.parts}종 · ${c.qty}개</small></li>`
+    ).join('');
+  }
+  carComboList.classList.remove('hidden');
+  carComboEl.classList.add('open');
+  carComboInput.setAttribute('aria-expanded', 'true');
+}
+
+function closeCarCombo() {
+  carComboActive = -1;
+  carComboList.classList.add('hidden');
+  carComboEl.classList.remove('open');
+  carComboInput.setAttribute('aria-expanded', 'false');
+}
+
+function chooseCar(car) {
+  carComboInput.value = car;
+  showCarMsg('');
+  closeCarCombo();
+  renderCarStock();
+}
+
+function showCarMsg(text, cls = '') {
+  carStockMsg.textContent = text;
+  carStockMsg.className = 'admin-msg-box ' + cls;
+}
+
+// 삭제 버튼 / 확인 바 상태 갱신
+function updateCarDeleteUI() {
+  const count = selectedParts.size;
+  carDeleteBtn.disabled = count === 0 || carDeleting;
+  carDeleteBtn.textContent = count ? `선택 항목(${count}건) 삭제` : '선택 항목 삭제';
+  if (count === 0) carDeleteConfirm.classList.add('hidden');
+  carDeleteOk.disabled = carDeleting;
+  carDeleteCancel.disabled = carDeleting;
+}
+
+function renderCarStock() {
+  if (!carStockListEl) return;
+  const msg = text => {
+    carStockListEl.innerHTML = `<div class="car-stock-empty">${text}</div>`;
+    selectedParts.clear();
+    carDeleteArea.classList.add('hidden');
+    updateCarDeleteUI();
+  };
+  carStockSummary.textContent = '';
+
+  if (carStockState === 'loading' && !carStock.cars.length) return msg('재고를 불러오는 중...');
+  if (carStockState === 'error') return msg(`${escapeHtml(carStockError)}`);
+
+  const cars = selectedCars();
+  if (!carComboInput.value.trim()) return msg('차종을 선택하거나 입력하면<br>입고되어 있는 품번과 수량이 표시됩니다.');
+  if (!cars.length) return msg('일치하는 차종이 없습니다.');
+
+  const names = new Set(cars.map(c => c.car));
+  const rows = carStock.items.filter(it => names.has(it.car));
+  const total = rows.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+  const multi = cars.length > 1;
+  carStockSummary.textContent = `${multi ? cars.length + '개 차종' : cars[0].car} · 품번 ${rows.length}종 · 총 ${total}개`;
+
+  if (!rows.length) return msg('입고되어 있는 품번이 없습니다.');
+
+  // 화면에서 사라진 품번의 체크는 해제 (보이지 않는 항목이 삭제되지 않도록)
+  const visible = new Set(rows.map(it => it.partNo));
+  [...selectedParts].forEach(k => { if (!visible.has(k)) selectedParts.delete(k); });
+
+  carStockListEl.innerHTML = '<table><thead><tr><th class="chk"><input type="checkbox" class="chk-all" aria-label="전체 선택"></th><th>품번</th>' + (multi ? '<th>차종</th>' : '') + '<th class="qty">수량</th></tr></thead><tbody>' +
+    rows.map(it => {
+      const checked = selectedParts.has(it.partNo);
+      return `<tr class="${checked ? 'selected' : ''}" data-part="${escapeHtml(it.partNo)}">` +
+        `<td class="chk"><input type="checkbox" class="chk-item" data-part="${escapeHtml(it.partNo)}" aria-label="${escapeHtml(it.partNo)} 선택"${checked ? ' checked' : ''}></td>` +
+        `<td>${escapeHtml(it.partNo)}${it.partName ? `<span class="part-sub">${escapeHtml(it.partName)}</span>` : ''}</td>` +
+        (multi ? `<td>${escapeHtml(it.car)}</td>` : '') +
+        `<td class="qty">${Number(it.qty) || 0}</td></tr>`;
+    }).join('') + '</tbody></table>';
+
+  syncCarSelectAll(rows.length);
+  carDeleteArea.classList.remove('hidden');
+  updateCarDeleteUI();
+}
+
+// 헤더 체크박스(전체 선택)의 체크/부분 선택 상태
+function syncCarSelectAll(rowCount) {
+  const all = carStockListEl.querySelector('.chk-all');
+  if (!all) return;
+  all.checked = rowCount > 0 && selectedParts.size === rowCount;
+  all.indeterminate = selectedParts.size > 0 && selectedParts.size < rowCount;
+}
+
+function toggleCarPart(part, on) {
+  if (on) selectedParts.add(part);
+  else selectedParts.delete(part);
+  const row = [...carStockListEl.querySelectorAll('tbody tr')].find(tr => tr.dataset.part === part);
+  if (row) {
+    row.classList.toggle('selected', on);
+    const box = row.querySelector('.chk-item');
+    if (box) box.checked = on;
+  }
+  syncCarSelectAll(carStockListEl.querySelectorAll('tbody tr').length);
+  carDeleteConfirm.classList.add('hidden');
+  showCarMsg('');
+  updateCarDeleteUI();
+}
+
+function toggleAllCarParts(on) {
+  carStockListEl.querySelectorAll('tbody tr').forEach(tr => {
+    const part = tr.dataset.part;
+    if (on) selectedParts.add(part);
+    else selectedParts.delete(part);
+    tr.classList.toggle('selected', on);
+    const box = tr.querySelector('.chk-item');
+    if (box) box.checked = on;
+  });
+  syncCarSelectAll(carStockListEl.querySelectorAll('tbody tr').length);
+  carDeleteConfirm.classList.add('hidden');
+  showCarMsg('');
+  updateCarDeleteUI();
+}
+
+// 선택한 품번의 입출고 기록을 시트에서 삭제 (서버 응답을 확인한 뒤에만 성공으로 표시)
+async function deleteSelectedParts() {
+  const partNos = [...selectedParts];
+  if (!partNos.length || carDeleting) return;
+
+  carDeleting = true;
+  updateCarDeleteUI();
+  showCarMsg('삭제 중...');
+  try {
+    const result = await postApi({ action: 'delete', partNos });
+    selectedParts.clear();
+    carDeleteConfirm.classList.add('hidden');
+    showCarMsg(`✅ ${partNos.length}건 삭제 완료 (기록 ${result.deletedRows ?? '-'}행)`, 'ok');
+    await loadCarStock();
+  } catch (err) {
+    showCarMsg(`❌ 삭제 실패: ${err instanceof TypeError ? '네트워크를 확인해 주세요.' : ((err && err.message) || '다시 시도해 주세요.')}`, 'err');
+  } finally {
+    carDeleting = false;
+    updateCarDeleteUI();
+  }
+}
+
+// 입고/출고 저장 (버튼을 누르면 바로 실행)
+async function savePart(type, btn) {
+  if (isSaving) return;
+
+  const partNo = partNoInput.value.trim();
+  const qty = Number(qtyInput.value) || 1;
+  let memo = memoInput.value.trim();
+
+  if (!partNo) {
+    showToast('품번을 스캔하거나 입력해 주세요.');
+    partNoInput.focus();
+    return;
+  }
+
+  // 스캔값이 매핑 품번으로 변환된 경우 원본 스캔값을 비고에 남김
+  if (autofill && autofill.partNo === partNo) {
+    memo = [`스캔: ${autofill.raw}`, memo].filter(Boolean).join(' / ');
+  }
+
+  isSaving = true;
+  btnIn.disabled = true;
+  btnOut.disabled = true;
+
+  audioController.playScanBeep();
+  audioController.triggerHaptic();
+
+  btn.classList.remove('saved-flash');
+  void btn.offsetWidth;
+  btn.classList.add('saved-flash');
+
+  const payload = { action: 'add', partNo, type, qty, event: selectedEvent, memo };
+
+  try {
+    await postApi(payload);
+    showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${selectedEvent})`);
+  } catch (err) {
+    showToast(`✅ ${type} 저장 완료: ${partNo}`);
+  }
+
+  scanStatusBadge.textContent = `${type} 저장 완료 [${selectedEvent}]`;
+  scanStatusBadge.className = 'status-indicator scanned';
+
+  // Clear Inputs for Next Scan
+  partNoInput.value = '';
+    showPartInfo('');
+  qtyInput.value = 1;
+  memoInput.value = '';
+
+  isSaving = false;
+  btnIn.disabled = false;
+  btnOut.disabled = false;
+
+  // Auto Trigger Next Scan if keepScanning check is enabled
+  if (keepScanningChk.checked) {
+    setTimeout(() => openScannerModal(), 400);
+  }
+}
+
 // Event Listeners Registration
 function initEvents() {
   // Navigation between Scan View and Admin Settings View
   adminBtn.addEventListener('click', () => {
     scanView.classList.add('hidden');
     adminView.classList.remove('hidden');
-    showAdminMsg('');
-    renderCarList();
+    showCarMsg('');
+    loadCarStock();
     window.scrollTo(0, 0);
   });
 
   backBtn.addEventListener('click', () => {
     adminView.classList.add('hidden');
     scanView.classList.remove('hidden');
+    fitScanTitle();
     window.scrollTo(0, 0);
-  });
-
-  // 입고 / 출고 Toggle Buttons
-  btnIn.addEventListener('click', () => {
-    currentType = '입고';
-    btnIn.classList.add('active');
-    btnOut.classList.remove('active');
-  });
-
-  btnOut.addEventListener('click', () => {
-    currentType = '출고';
-    btnOut.classList.add('active');
-    btnIn.classList.remove('active');
   });
 
   // PartNo Change Listener for Master Lookup & Auto Extract
@@ -472,33 +654,6 @@ function initEvents() {
   startScanBtn.addEventListener('click', () => {
     audioController.init();
     openScannerModal();
-  });
-
-  // Gallery File Scan Button
-  galleryScanBtn.addEventListener('click', () => {
-    audioController.init();
-    galleryFileInput.click();
-  });
-
-  galleryFileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    showToast('사진 이미지 분석 중...');
-    if (!scannerInstance) {
-      scannerInstance = new BarcodeScanner('interactiveScanner', handleBarcodeScanned);
-    }
-
-    try {
-      const code = await scannerInstance.scanImageFile(file);
-      setPartNumber(code, '갤러리 스캔');
-      const finalCode = extractStandardPartNo(code);
-      showToast(`품번 스캔 완료: ${finalCode} [${selectedEvent}]`);
-    } catch (err) {
-      showToast(err.message || '바코드를 인지하지 못했습니다.');
-    } finally {
-      galleryFileInput.value = '';
-    }
   });
 
   // Close Scanner Modal
@@ -538,77 +693,11 @@ function initEvents() {
     }
   });
 
-  // Save Button Handler (with API integration + Keep Scanning support)
-  savePartNoBtn.addEventListener('click', async () => {
-    const partNo = partNoInput.value.trim();
-    const qty = Number(qtyInput.value) || 1;
-    let memo = memoInput.value.trim();
+  // 입고 / 출고 버튼: 누르면 바로 저장 (API integration + Keep Scanning support)
+  btnIn.addEventListener('click', () => savePart('입고', btnIn));
+  btnOut.addEventListener('click', () => savePart('출고', btnOut));
 
-    // 스캔값이 매핑 품번으로 변환된 경우 원본 스캔값을 비고에 남김
-    if (autofill && autofill.partNo === partNo) {
-      memo = [`스캔: ${autofill.raw}`, memo].filter(Boolean).join(' / ');
-    }
-
-    if (!partNo) {
-      showToast('품번을 스캔하거나 입력해 주세요.');
-      partNoInput.focus();
-      return;
-    }
-
-    audioController.playScanBeep();
-    audioController.triggerHaptic();
-
-    savePartNoBtn.classList.remove('saved-flash');
-    void savePartNoBtn.offsetWidth;
-    savePartNoBtn.classList.add('saved-flash');
-
-    // Add entry to stockRows
-    stockRows.push({
-      key: partNo + '_' + Date.now(),
-      partNo,
-      type: currentType,
-      qty,
-      event: selectedEvent,
-      memo,
-      days: 0
-    });
-
-    const payload = { action: 'add', partNo, type: currentType, qty, event: selectedEvent, memo };
-
-    try {
-      await postApi(payload);
-      showToast(`✅ 저장 완료: ${partNo} / ${currentType} / ${qty}개 (${selectedEvent})`);
-    } catch (err) {
-      showToast(`✅ 저장 완료: ${partNo} (${currentType})`);
-    }
-
-    scanStatusBadge.textContent = `저장 완료 [${selectedEvent}]`;
-    scanStatusBadge.className = 'status-indicator scanned';
-
-    // Clear Inputs for Next Scan
-    partNoInput.value = '';
-    partNoInput.classList.remove('filled');
-    showPartInfo('');
-    qtyInput.value = 1;
-    memoInput.value = '';
-
-    // Auto Trigger Next Scan if keepScanning check is enabled
-    if (keepScanningChk.checked) {
-      setTimeout(() => openScannerModal(), 400);
-    }
-  });
-
-  // Copy & Clear Input Buttons
-  copyPartNoBtn.addEventListener('click', () => {
-    if (!partNoInput.value) {
-      showToast('복사할 품번이 없습니다.');
-      return;
-    }
-    navigator.clipboard.writeText(partNoInput.value).then(() => {
-      showToast(`품번 복사완료: ${partNoInput.value}`);
-    });
-  });
-
+  // Clear Input Button
   clearPartNoBtn.addEventListener('click', () => {
     partNoInput.value = '';
     showPartInfo('');
@@ -626,75 +715,84 @@ function initEvents() {
     showToast(isEnabled ? '소리 피드백 켜짐' : '소리 피드백 꺼짐');
   });
 
+  // --- 차종별 재고 콤보 박스 ---
+  carComboInput.addEventListener('input', () => {
+    carComboActive = -1;
+    showCarMsg('');
+    renderCarCombo(false);
+    renderCarStock();
+  });
+
+  carComboInput.addEventListener('click', () => {
+    if (carComboList.classList.contains('hidden')) renderCarCombo(!carComboInput.value.trim());
+  });
+
+  carComboInput.addEventListener('keydown', (e) => {
+    const options = [...carComboList.querySelectorAll('li[data-car]')];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (carComboList.classList.contains('hidden')) renderCarCombo(!carComboInput.value.trim());
+      const count = carComboList.querySelectorAll('li[data-car]').length;
+      if (!count) return;
+      carComboActive = (carComboActive + (e.key === 'ArrowDown' ? 1 : -1) + count) % count;
+      renderCarCombo(!carComboInput.value.trim());
+      carComboList.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const pick = options[carComboActive] || (options.length === 1 ? options[0] : null);
+      if (pick) chooseCar(pick.dataset.car);
+      else closeCarCombo();
+    } else if (e.key === 'Escape') {
+      closeCarCombo();
+    }
+  });
+
+  carComboToggle.addEventListener('click', () => {
+    if (carComboList.classList.contains('hidden')) {
+      renderCarCombo(true);
+      carComboInput.focus();
+    } else {
+      closeCarCombo();
+    }
+  });
+
+  // 터치에서도 입력창 포커스가 빠지기 전에 선택되도록 mousedown 사용
+  carComboList.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li[data-car]');
+    if (!li) return;
+    e.preventDefault();
+    chooseCar(li.dataset.car);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!carComboEl.contains(e.target)) closeCarCombo();
+  });
+
+  carStockRefreshBtn.addEventListener('click', () => { showCarMsg(''); loadCarStock(); });
+
+  // 리스트: 체크박스 / 행 탭으로 선택
+  carStockListEl.addEventListener('change', (e) => {
+    if (e.target.classList.contains('chk-all')) toggleAllCarParts(e.target.checked);
+    else if (e.target.classList.contains('chk-item')) toggleCarPart(e.target.dataset.part, e.target.checked);
+  });
+
+  carStockListEl.addEventListener('click', (e) => {
+    if (e.target.closest('input')) return;
+    const tr = e.target.closest('tbody tr');
+    if (tr) toggleCarPart(tr.dataset.part, !selectedParts.has(tr.dataset.part));
+  });
+
+  // 삭제: 버튼 → 화면 안 확인 바 → 삭제 실행
+  carDeleteBtn.addEventListener('click', () => {
+    const count = selectedParts.size;
+    if (!count) return;
+    carDeleteConfirmText.textContent = `선택한 ${count}개 품번의 입출고 기록이 시트에서 완전히 삭제됩니다. 되돌릴 수 없습니다.`;
+    carDeleteConfirm.classList.remove('hidden');
+  });
+  carDeleteCancel.addEventListener('click', () => carDeleteConfirm.classList.add('hidden'));
+  carDeleteOk.addEventListener('click', deleteSelectedParts);
+
   // --- Admin View Event Listeners (from index (1).html) ---
-
-  addCarBtn.addEventListener('click', async function () {
-    const code = carCodeInput.value.trim().toUpperCase();
-    const name = carNameInput.value.trim();
-    if (!code || !name) {
-      showAdminMsg('코드와 차종명을 입력해 주세요.', 'err');
-      return;
-    }
-
-    this.disabled = true;
-    showAdminMsg('차종 코드 추가 중...');
-
-    masterRows.push([code, name, '', '']);
-    renderCarList();
-
-    try {
-      await postApi({ action: 'addCarCode', code, name });
-      showAdminMsg('✅ 신규 차종 코드 추가 완료', 'ok');
-      carCodeInput.value = '';
-      carNameInput.value = '';
-    } catch (err) {
-      showAdminMsg('✅ 차종 코드 추가 완료 (로컬 갱신됨)', 'ok');
-      carCodeInput.value = '';
-      carNameInput.value = '';
-    } finally {
-      this.disabled = false;
-    }
-  });
-
-  loadStockBtn.addEventListener('click', async () => {
-    stockListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">재고 불러오는 중...</div>';
-    disposeBtn.disabled = true;
-    selectedStockKeys = {};
-
-    try {
-      const r = await fetch(API_URL + '?action=stock');
-      const d = await r.json();
-      if (d && d.stock) {
-        stockRows = d.stock.filter(s => s.qty > 0);
-      }
-    } catch (e) {
-      // Keep existing local stockRows if offline
-    }
-    renderStockList();
-  });
-
-  stockSearchInput.addEventListener('input', renderStockList);
-
-  disposeBtn.addEventListener('click', async function () {
-    const keys = Object.keys(selectedStockKeys);
-    if (!keys.length || !confirm('선택한 재고 항목을 완전히 삭제합니다. 계속하시겠습니까?')) return;
-
-    this.disabled = true;
-    showAdminMsg('선택 항목 삭제 중...');
-
-    stockRows = stockRows.filter(s => !selectedStockKeys[s.key || s.partNo]);
-    renderStockList();
-
-    try {
-      await postApi({ action: 'delete', partNos: keys });
-      showAdminMsg('✅ 선택 항목 삭제 완료', 'ok');
-    } catch (err) {
-      showAdminMsg('✅ 삭제 처리 완료', 'ok');
-    } finally {
-      selectedStockKeys = {};
-      updateDisposeBtn();
-    }
-  });
 
   // Close Modals on Overlay Backdrop Click
   scannerModal.addEventListener('click', (e) => {
@@ -703,9 +801,27 @@ function initEvents() {
 }
 
 // App Initialization
+// 스캔 화면 제목을 한 줄 폭에 꽉 차게: 기준 크기로 글자 폭을 재서 비율로 크기를 계산
+function fitScanTitle() {
+  const h1 = document.querySelector('#scanView .card-header h1');
+  if (!h1 || !h1.parentElement || h1.offsetParent === null) return; // 숨겨져 있으면 측정 불가
+  const box = h1.parentElement.clientWidth;
+  const probe = 20;
+  h1.style.fontSize = probe + 'px';
+  const range = document.createRange();
+  range.selectNodeContents(h1);
+  const textWidth = range.getBoundingClientRect().width; // 줄 폭이 아니라 글자 자체의 폭
+  if (!textWidth || !box) { h1.style.fontSize = ''; return; }
+  h1.style.fontSize = (Math.floor((probe * box / textWidth) * 10) / 10 * 0.99) + 'px';
+}
+
 function initApp() {
   initEvents();
   loadMasterData();
+  fitScanTitle();
+  window.addEventListener('resize', fitScanTitle);
+  window.addEventListener('orientationchange', fitScanTitle);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitScanTitle);
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

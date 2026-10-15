@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 
-    <script type="module" crossorigin src="./assets/index-Ci4JI2di.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index--E4PquHd.css">
+    <script type="module" crossorigin src="./assets/index-CT1NqvzT.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DXRzPUUT.css">
   </head>
   <body>
     <div id="app" class="app-container">
@@ -46,10 +46,11 @@
               <line x1="17" y1="9" x2="23" y2="15"></line>
             </svg>
           </button>
-          <button id="adminBtn" class="icon-btn" title="관리 설정" aria-label="관리 설정">
+          <button id="adminBtn" class="icon-btn" title="재고 조회" aria-label="재고 조회">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
           </button>
         </div>
@@ -74,59 +75,27 @@
               <span class="btn-title">스캔</span>
             </button>
             <div id="scanResultBox" class="scan-result-box">
-              <span class="scan-result-label">스캔한 품번</span>
-              <span id="scanResultValue" class="scan-result-value">-</span>
+              <div class="scan-result-head">
+                <label for="partNoInput" class="scan-result-label">스캔한 품번</label>
+                <span id="scanStatusBadge" class="status-indicator ready">대기 중</span>
+              </div>
+              <div class="scan-result-field">
+                <input type="text" id="partNoInput" class="scan-result-input" placeholder="스캔 또는 직접 입력" autocomplete="off" spellcheck="false" />
+                <button id="clearPartNoBtn" class="action-icon-btn" title="초기화" aria-label="초기화">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-
-          <button id="galleryScanBtn" class="gallery-secondary-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-            <span>사진 앨범에서 스캔</span>
-          </button>
-          <input type="file" id="galleryFileInput" accept="image/*" class="hidden" />
         </div>
 
         <!-- Part No Input Field Group -->
         <div class="input-section">
-          <label for="partNoInput" class="input-label">
-            <span>Part No (스캔된 품번)</span>
-            <span id="scanStatusBadge" class="status-indicator ready">대기 중</span>
-          </label>
-          <div class="input-wrapper">
-            <div class="input-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                <line x1="7" y1="7" x2="7.01" y2="7"></line>
-              </svg>
-            </div>
-            <input 
-              type="text" 
-              id="partNoInput" 
-              class="part-no-input" 
-              placeholder="스캔하거나 직접 입력..." 
-              autocomplete="off" 
-              spellcheck="false"
-            />
-            <div class="input-actions">
-              <button id="copyPartNoBtn" class="action-icon-btn" title="품번 복사" aria-label="품번 복사">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-              <button id="clearPartNoBtn" class="action-icon-btn" title="초기화" aria-label="초기화">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="15" y1="9" x2="9" y2="15"></line>
-                  <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
+          <h2 class="section-title">샘플 정보 입력</h2>
 
           <!-- 파트ID매핑 결과 박스 (스캔값 앞 6자리 → 시트 B열 값) -->
           <div id="partIdBox" class="part-id-box hidden">
@@ -136,15 +105,6 @@
 
           <!-- Part Info Lookup Box -->
           <div id="partInfo" class="part-info-box"></div>
-
-          <!-- 입고 / 출고 구분 버튼 -->
-          <div class="type-toggle-section">
-            <span class="event-label">입출고 구분</span>
-            <div class="type-toggle">
-              <button id="btn-in" class="active">입고</button>
-              <button id="btn-out">출고</button>
-            </div>
-          </div>
 
           <!-- 수량 입력 -->
           <div class="qty-section">
@@ -170,16 +130,12 @@
             <input id="memoInput" type="text" placeholder="특이사항 메모 입력..." class="standard-input" />
           </div>
 
-          <!-- Large Save Button -->
+          <!-- 입고 / 출고 버튼: 누르면 바로 저장 -->
           <div class="save-section">
-            <button id="savePartNoBtn" class="save-primary-btn">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-              </svg>
-              <span>저장하기</span>
-            </button>
+            <div class="type-actions">
+              <button id="btn-in" class="type-action-btn in">입고</button>
+              <button id="btn-out" class="type-action-btn out">출고</button>
+            </div>
           </div>
 
           <!-- 바로 다음 스캔 체크박스 -->
@@ -197,42 +153,44 @@
       <!-- ADMIN / SETTINGS PAGE VIEW (index (1).html 기능 100% 이식) -->
       <main id="adminView" class="main-card hidden">
         <div class="card-header">
-          <span class="badge">시스템 관리 및 재고 설정</span>
-          <h1>⚙️ 관리자 설정 페이지</h1>
-          <p class="description">차종 코드를 추가 관리하고, 입출고 재고 데이터를 실시간 조회 및 삭제합니다.</p>
+          <span class="badge">차종별 재고 조회</span>
+          <h1>📦 재고 조회</h1>
+          <p class="description">차종을 선택하면 현재 입고되어 있는 품번과 수량을 확인할 수 있습니다.</p>
         </div>
 
-        <!-- 카드 1: 🚗 차종 코드 추가 -->
+        <!-- 카드 0: 📦 차종별 재고 (콤보 박스 + 리스트) -->
         <div class="settings-card">
           <div class="card-title-group">
-            <h3>🚗 차종 코드 추가</h3>
-            <span class="desc">품번마스터 차종코드(A열) · 차종명(B열)에 신규 등록됩니다.</span>
+            <h3>📦 차종별 재고</h3>
+            <span class="desc">차종을 고르거나 입력하면 현재 입고되어 있는 품번과 수량이 아래에 표시됩니다.</span>
           </div>
-          <div class="form-row">
-            <input id="carCode" class="w-code standard-input" placeholder="코드 (예: DC)" maxlength="6" autocomplete="off" />
-            <input id="carName" class="standard-input" placeholder="차종명 (예: JG1)" autocomplete="off" />
-            <button id="addCarBtn" class="accent-btn-sm">추가</button>
+          <div id="carCombo" class="combo">
+            <input id="carComboInput" class="standard-input combo-input" type="text" role="combobox" aria-expanded="false" aria-controls="carComboList" aria-autocomplete="list" placeholder="차종 선택 또는 입력" autocomplete="off" spellcheck="false" />
+            <button id="carComboToggle" class="combo-toggle" type="button" aria-label="차종 목록 열기">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <ul id="carComboList" class="combo-list hidden" role="listbox"></ul>
           </div>
-          <div id="carList" class="data-list-table"></div>
+          <div class="stock-summary-row">
+            <span id="carStockSummary" class="stock-summary"></span>
+            <button id="carStockRefreshBtn" class="link-btn" type="button">🔄 새로고침</button>
+          </div>
+          <div id="carStockList" class="data-list-table car-stock-list"></div>
+
+          <!-- 선택 삭제 (전체 선택 또는 일부 선택) -->
+          <div id="carDeleteArea" class="car-delete-area hidden">
+            <button id="carDeleteBtn" class="danger-btn-full" type="button" disabled>선택 항목 삭제</button>
+            <div id="carDeleteConfirm" class="confirm-bar hidden" role="alertdialog" aria-live="assertive">
+              <p id="carDeleteConfirmText" class="confirm-text"></p>
+              <div class="confirm-actions">
+                <button id="carDeleteCancel" class="confirm-cancel" type="button">취소</button>
+                <button id="carDeleteOk" class="confirm-ok" type="button">삭제</button>
+              </div>
+            </div>
+          </div>
+          <div id="carStockMsg" class="admin-msg-box"></div>
         </div>
 
-        <!-- 카드 2: 🗑️ 재고 일괄 삭제 -->
-        <div class="settings-card">
-          <div class="card-title-group">
-            <h3>🗑️ 재고 일괄 삭제</h3>
-            <span class="desc">선택한 품번의 입출고 기록 행을 데이터베이스에서 삭제합니다.</span>
-          </div>
-          <div class="form-row">
-            <button id="loadStockBtn" class="outline-btn-full">🔄 재고 목록 불러오기</button>
-          </div>
-          <div class="form-row">
-            <input id="stockSearch" class="standard-input" placeholder="🔍 품번 검색..." autocomplete="off" />
-          </div>
-          <div id="stockList" class="data-list-table"></div>
-          <button id="disposeBtn" class="danger-btn-full" disabled>선택 항목 삭제</button>
-        </div>
-
-        <div id="adminMsg" class="admin-msg-box"></div>
         <button id="backBtn" class="outline-btn-full back-nav-btn">← 스캔 화면으로 돌아가기</button>
       </main>
 

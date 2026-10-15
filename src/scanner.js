@@ -111,20 +111,6 @@ export class BarcodeScanner {
     }
   }
 
-  async scanImageFile(file) {
-    const tempScanner = new Html5Qrcode("interactiveScanner", {
-      experimentalFeatures: { useBarCodeDetectorIfSupported: false }
-    });
-    try {
-      const decodedText = await tempScanner.scanFileV2(file, true);
-      tempScanner.clear();
-      return decodedText.decodedText;
-    } catch (err) {
-      tempScanner.clear();
-      throw new Error('이미지에서 바코드를 인지하지 못했습니다. 선명한 바코드 이미지를 선택해주세요.');
-    }
-  }
-
   applyAutofocusTrackConstraints() {
     try {
       const track = this.html5Qrcode.getRunningTrack();

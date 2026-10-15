@@ -195,6 +195,12 @@ body {
   letter-spacing: -0.03em;
 }
 
+/* 스캔 화면 제목: 한 줄에 꽉 차게 (글자 크기는 fitScanTitle()이 화면 폭에 맞춰 계산) */
+#scanView .card-header h1 {
+  font-size: 6.4vw;
+  white-space: nowrap;
+}
+
 .card-header .description {
   font-size: 0.9rem;
   color: var(--text-muted);

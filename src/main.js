@@ -627,6 +627,7 @@ function initEvents() {
   backBtn.addEventListener('click', () => {
     adminView.classList.add('hidden');
     scanView.classList.remove('hidden');
+    fitScanTitle();
     window.scrollTo(0, 0);
   });
 
@@ -800,9 +801,27 @@ function initEvents() {
 }
 
 // App Initialization
+// 스캔 화면 제목을 한 줄 폭에 꽉 차게: 기준 크기로 글자 폭을 재서 비율로 크기를 계산
+function fitScanTitle() {
+  const h1 = document.querySelector('#scanView .card-header h1');
+  if (!h1 || !h1.parentElement || h1.offsetParent === null) return; // 숨겨져 있으면 측정 불가
+  const box = h1.parentElement.clientWidth;
+  const probe = 20;
+  h1.style.fontSize = probe + 'px';
+  const range = document.createRange();
+  range.selectNodeContents(h1);
+  const textWidth = range.getBoundingClientRect().width; // 줄 폭이 아니라 글자 자체의 폭
+  if (!textWidth || !box) { h1.style.fontSize = ''; return; }
+  h1.style.fontSize = (Math.floor((probe * box / textWidth) * 10) / 10 * 0.99) + 'px';
+}
+
 function initApp() {
   initEvents();
   loadMasterData();
+  fitScanTitle();
+  window.addEventListener('resize', fitScanTitle);
+  window.addEventListener('orientationchange', fitScanTitle);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitScanTitle);
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

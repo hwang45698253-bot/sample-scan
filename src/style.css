@@ -621,6 +621,11 @@ body {
   margin-top: 16px;
   background: var(--bg-surface-elevated);
   border-color: rgba(255, 255, 255, 0.2);
+  /* 목록이 길어도 화면 맨 아래에 고정 */
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 
 .data-list-table {

@@ -54,6 +54,13 @@ const carComboList = document.getElementById('carComboList');
 const carStockSummary = document.getElementById('carStockSummary');
 const carStockListEl = document.getElementById('carStockList');
 const carStockRefreshBtn = document.getElementById('carStockRefreshBtn');
+const carDeleteArea = document.getElementById('carDeleteArea');
+const carDeleteBtn = document.getElementById('carDeleteBtn');
+const carDeleteConfirm = document.getElementById('carDeleteConfirm');
+const carDeleteConfirmText = document.getElementById('carDeleteConfirmText');
+const carDeleteCancel = document.getElementById('carDeleteCancel');
+const carDeleteOk = document.getElementById('carDeleteOk');
+const carStockMsg = document.getElementById('carStockMsg');
 
 // App State
 let scannerInstance = null;
@@ -65,6 +72,8 @@ let carStock = { cars: [], items: [] };
 let carStockState = 'idle'; // idle | loading | ready | error
 let carStockError = '';
 let carComboActive = -1;
+const selectedParts = new Set(); // 체크된 품번 (현재 보이는 리스트 기준)
+let carDeleting = false;
 
 let masterRows = [
   ['DC', 'JG1', '88840', 'Front Bumper Sensor Module'],
@@ -422,13 +431,34 @@ function closeCarCombo() {
 
 function chooseCar(car) {
   carComboInput.value = car;
+  showCarMsg('');
   closeCarCombo();
   renderCarStock();
 }
 
+function showCarMsg(text, cls = '') {
+  carStockMsg.textContent = text;
+  carStockMsg.className = 'admin-msg-box ' + cls;
+}
+
+// 삭제 버튼 / 확인 바 상태 갱신
+function updateCarDeleteUI() {
+  const count = selectedParts.size;
+  carDeleteBtn.disabled = count === 0 || carDeleting;
+  carDeleteBtn.textContent = count ? `선택 항목(${count}건) 삭제` : '선택 항목 삭제';
+  if (count === 0) carDeleteConfirm.classList.add('hidden');
+  carDeleteOk.disabled = carDeleting;
+  carDeleteCancel.disabled = carDeleting;
+}
+
 function renderCarStock() {
   if (!carStockListEl) return;
-  const msg = text => { carStockListEl.innerHTML = `<div class="car-stock-empty">${text}</div>`; };
+  const msg = text => {
+    carStockListEl.innerHTML = `<div class="car-stock-empty">${text}</div>`;
+    selectedParts.clear();
+    carDeleteArea.classList.add('hidden');
+    updateCarDeleteUI();
+  };
   carStockSummary.textContent = '';
 
   if (carStockState === 'loading' && !carStock.cars.length) return msg('재고를 불러오는 중...');
@@ -446,12 +476,83 @@ function renderCarStock() {
 
   if (!rows.length) return msg('입고되어 있는 품번이 없습니다.');
 
-  carStockListEl.innerHTML = '<table><thead><tr><th>품번</th>' + (multi ? '<th>차종</th>' : '') + '<th class="qty">수량</th></tr></thead><tbody>' +
-    rows.map(it =>
-      `<tr><td>${escapeHtml(it.partNo)}${it.partName ? `<span class="part-sub">${escapeHtml(it.partName)}</span>` : ''}</td>` +
-      (multi ? `<td>${escapeHtml(it.car)}</td>` : '') +
-      `<td class="qty">${Number(it.qty) || 0}</td></tr>`
-    ).join('') + '</tbody></table>';
+  // 화면에서 사라진 품번의 체크는 해제 (보이지 않는 항목이 삭제되지 않도록)
+  const visible = new Set(rows.map(it => it.partNo));
+  [...selectedParts].forEach(k => { if (!visible.has(k)) selectedParts.delete(k); });
+
+  carStockListEl.innerHTML = '<table><thead><tr><th class="chk"><input type="checkbox" class="chk-all" aria-label="전체 선택"></th><th>품번</th>' + (multi ? '<th>차종</th>' : '') + '<th class="qty">수량</th></tr></thead><tbody>' +
+    rows.map(it => {
+      const checked = selectedParts.has(it.partNo);
+      return `<tr class="${checked ? 'selected' : ''}" data-part="${escapeHtml(it.partNo)}">` +
+        `<td class="chk"><input type="checkbox" class="chk-item" data-part="${escapeHtml(it.partNo)}" aria-label="${escapeHtml(it.partNo)} 선택"${checked ? ' checked' : ''}></td>` +
+        `<td>${escapeHtml(it.partNo)}${it.partName ? `<span class="part-sub">${escapeHtml(it.partName)}</span>` : ''}</td>` +
+        (multi ? `<td>${escapeHtml(it.car)}</td>` : '') +
+        `<td class="qty">${Number(it.qty) || 0}</td></tr>`;
+    }).join('') + '</tbody></table>';
+
+  syncCarSelectAll(rows.length);
+  carDeleteArea.classList.remove('hidden');
+  updateCarDeleteUI();
+}
+
+// 헤더 체크박스(전체 선택)의 체크/부분 선택 상태
+function syncCarSelectAll(rowCount) {
+  const all = carStockListEl.querySelector('.chk-all');
+  if (!all) return;
+  all.checked = rowCount > 0 && selectedParts.size === rowCount;
+  all.indeterminate = selectedParts.size > 0 && selectedParts.size < rowCount;
+}
+
+function toggleCarPart(part, on) {
+  if (on) selectedParts.add(part);
+  else selectedParts.delete(part);
+  const row = [...carStockListEl.querySelectorAll('tbody tr')].find(tr => tr.dataset.part === part);
+  if (row) {
+    row.classList.toggle('selected', on);
+    const box = row.querySelector('.chk-item');
+    if (box) box.checked = on;
+  }
+  syncCarSelectAll(carStockListEl.querySelectorAll('tbody tr').length);
+  carDeleteConfirm.classList.add('hidden');
+  showCarMsg('');
+  updateCarDeleteUI();
+}
+
+function toggleAllCarParts(on) {
+  carStockListEl.querySelectorAll('tbody tr').forEach(tr => {
+    const part = tr.dataset.part;
+    if (on) selectedParts.add(part);
+    else selectedParts.delete(part);
+    tr.classList.toggle('selected', on);
+    const box = tr.querySelector('.chk-item');
+    if (box) box.checked = on;
+  });
+  syncCarSelectAll(carStockListEl.querySelectorAll('tbody tr').length);
+  carDeleteConfirm.classList.add('hidden');
+  showCarMsg('');
+  updateCarDeleteUI();
+}
+
+// 선택한 품번의 입출고 기록을 시트에서 삭제 (서버 응답을 확인한 뒤에만 성공으로 표시)
+async function deleteSelectedParts() {
+  const partNos = [...selectedParts];
+  if (!partNos.length || carDeleting) return;
+
+  carDeleting = true;
+  updateCarDeleteUI();
+  showCarMsg('삭제 중...');
+  try {
+    const result = await postApi({ action: 'delete', partNos });
+    selectedParts.clear();
+    carDeleteConfirm.classList.add('hidden');
+    showCarMsg(`✅ ${partNos.length}건 삭제 완료 (기록 ${result.deletedRows ?? '-'}행)`, 'ok');
+    await loadCarStock();
+  } catch (err) {
+    showCarMsg(`❌ 삭제 실패: ${err instanceof TypeError ? '네트워크를 확인해 주세요.' : ((err && err.message) || '다시 시도해 주세요.')}`, 'err');
+  } finally {
+    carDeleting = false;
+    updateCarDeleteUI();
+  }
 }
 
 // 입고/출고 저장 (버튼을 누르면 바로 실행)
@@ -518,6 +619,7 @@ function initEvents() {
   adminBtn.addEventListener('click', () => {
     scanView.classList.add('hidden');
     adminView.classList.remove('hidden');
+    showCarMsg('');
     loadCarStock();
     window.scrollTo(0, 0);
   });
@@ -615,6 +717,7 @@ function initEvents() {
   // --- 차종별 재고 콤보 박스 ---
   carComboInput.addEventListener('input', () => {
     carComboActive = -1;
+    showCarMsg('');
     renderCarCombo(false);
     renderCarStock();
   });
@@ -664,7 +767,29 @@ function initEvents() {
     if (!carComboEl.contains(e.target)) closeCarCombo();
   });
 
-  carStockRefreshBtn.addEventListener('click', loadCarStock);
+  carStockRefreshBtn.addEventListener('click', () => { showCarMsg(''); loadCarStock(); });
+
+  // 리스트: 체크박스 / 행 탭으로 선택
+  carStockListEl.addEventListener('change', (e) => {
+    if (e.target.classList.contains('chk-all')) toggleAllCarParts(e.target.checked);
+    else if (e.target.classList.contains('chk-item')) toggleCarPart(e.target.dataset.part, e.target.checked);
+  });
+
+  carStockListEl.addEventListener('click', (e) => {
+    if (e.target.closest('input')) return;
+    const tr = e.target.closest('tbody tr');
+    if (tr) toggleCarPart(tr.dataset.part, !selectedParts.has(tr.dataset.part));
+  });
+
+  // 삭제: 버튼 → 화면 안 확인 바 → 삭제 실행
+  carDeleteBtn.addEventListener('click', () => {
+    const count = selectedParts.size;
+    if (!count) return;
+    carDeleteConfirmText.textContent = `선택한 ${count}개 품번의 입출고 기록이 시트에서 완전히 삭제됩니다. 되돌릴 수 없습니다.`;
+    carDeleteConfirm.classList.remove('hidden');
+  });
+  carDeleteCancel.addEventListener('click', () => carDeleteConfirm.classList.add('hidden'));
+  carDeleteOk.addEventListener('click', deleteSelectedParts);
 
   // --- Admin View Event Listeners (from index (1).html) ---
 

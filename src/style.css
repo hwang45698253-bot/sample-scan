@@ -1101,3 +1101,150 @@ body {
 .hidden {
   display: none !important;
 }
+
+
+/* 차종별 재고: 콤보 박스 + 리스트 */
+.combo {
+  position: relative;
+}
+
+.combo-input {
+  padding-right: 46px;
+}
+
+.combo-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.combo-toggle svg {
+  transition: transform var(--transition-fast);
+}
+
+.combo.open .combo-toggle svg {
+  transform: rotate(180deg);
+}
+
+.combo-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm), 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.combo-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.combo-list li small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+.combo-list li:hover,
+.combo-list li.active {
+  background: rgba(99, 102, 241, 0.22);
+}
+
+.combo-list li.selected {
+  color: #c4b5fd;
+}
+
+.combo-list .combo-empty {
+  cursor: default;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+
+.combo-list .combo-empty:hover {
+  background: transparent;
+}
+
+.stock-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stock-summary {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.link-btn:hover {
+  color: var(--text-main);
+}
+
+.car-stock-list {
+  max-height: 340px;
+}
+
+.car-stock-list .part-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-subtle);
+  word-break: break-word;
+}
+
+.car-stock-list td.qty,
+.car-stock-list th.qty {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.car-stock-empty {
+  padding: 18px 14px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-subtle);
+  line-height: 1.5;
+}

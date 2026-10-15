@@ -55,10 +55,25 @@ const stockListEl = document.getElementById('stockList');
 const disposeBtn = document.getElementById('disposeBtn');
 const adminMsgBox = document.getElementById('adminMsg');
 
+// 차종별 재고 (콤보 박스 + 리스트)
+const carComboEl = document.getElementById('carCombo');
+const carComboInput = document.getElementById('carComboInput');
+const carComboToggle = document.getElementById('carComboToggle');
+const carComboList = document.getElementById('carComboList');
+const carStockSummary = document.getElementById('carStockSummary');
+const carStockListEl = document.getElementById('carStockList');
+const carStockRefreshBtn = document.getElementById('carStockRefreshBtn');
+
 // App State
 let scannerInstance = null;
 let selectedEvent = 'P0';
 let isSaving = false;
+
+// 차종별 재고: 서버(?action=stockByCar)에서 받은 차종 목록과 입고 중인 품번별 수량
+let carStock = { cars: [], items: [] };
+let carStockState = 'idle'; // idle | loading | ready | error
+let carStockError = '';
+let carComboActive = -1;
 
 let masterRows = [
   ['DC', 'JG1', '88840', 'Front Bumper Sensor Module'],
@@ -413,6 +428,103 @@ async function postApi(payload) {
   return data;
 }
 
+// ----- 차종별 재고 (콤보 박스 + 리스트) -----
+
+async function loadCarStock() {
+  carStockState = 'loading';
+  renderCarStock();
+  try {
+    const res = await fetch(API_URL + '?action=stockByCar');
+    const data = await res.json();
+    if (!data || !data.ok || !Array.isArray(data.cars) || !Array.isArray(data.items)) {
+      throw new Error((data && data.error) || '서버가 차종별 재고를 지원하지 않습니다. Apps Script를 새 버전으로 배포했는지 확인해 주세요.');
+    }
+    carStock = { cars: data.cars, items: data.items };
+    carStockState = 'ready';
+  } catch (err) {
+    carStockState = 'error';
+    carStockError = (err && err.message) || '재고를 불러오지 못했습니다.';
+  }
+  renderCarStock();
+  if (!carComboList.classList.contains('hidden')) renderCarCombo(false);
+}
+
+// 입력한 글자와 일치(정확히 같으면 그 차종만, 아니면 포함)하는 차종들
+function selectedCars() {
+  const q = carComboInput.value.trim().toLowerCase();
+  if (!q) return [];
+  const exact = carStock.cars.filter(c => c.car.toLowerCase() === q);
+  return exact.length ? exact : carStock.cars.filter(c => c.car.toLowerCase().includes(q));
+}
+
+function renderCarCombo(showAll) {
+  const q = showAll ? '' : carComboInput.value.trim().toLowerCase();
+  const options = carStock.cars.filter(c => !q || c.car.toLowerCase().includes(q));
+  if (carComboActive >= options.length) carComboActive = options.length - 1;
+
+  // 입력 중 일치하는 차종이 없으면 드롭다운은 닫고, 안내는 아래 리스트 영역에 표시
+  if (!showAll && q && !options.length) {
+    closeCarCombo();
+    return;
+  }
+
+  if (carStockState === 'loading' && !carStock.cars.length) {
+    carComboList.innerHTML = '<li class="combo-empty">차종을 불러오는 중...</li>';
+  } else if (!options.length) {
+    carComboList.innerHTML = '<li class="combo-empty">일치하는 차종이 없습니다.</li>';
+  } else {
+    const current = carComboInput.value.trim().toLowerCase();
+    carComboList.innerHTML = options.map((c, i) =>
+      `<li role="option" data-car="${escapeHtml(c.car)}" class="${i === carComboActive ? 'active' : ''}${c.car.toLowerCase() === current ? ' selected' : ''}">` +
+      `<span>${escapeHtml(c.car)}</span><small>${c.parts}종 · ${c.qty}개</small></li>`
+    ).join('');
+  }
+  carComboList.classList.remove('hidden');
+  carComboEl.classList.add('open');
+  carComboInput.setAttribute('aria-expanded', 'true');
+}
+
+function closeCarCombo() {
+  carComboActive = -1;
+  carComboList.classList.add('hidden');
+  carComboEl.classList.remove('open');
+  carComboInput.setAttribute('aria-expanded', 'false');
+}
+
+function chooseCar(car) {
+  carComboInput.value = car;
+  closeCarCombo();
+  renderCarStock();
+}
+
+function renderCarStock() {
+  if (!carStockListEl) return;
+  const msg = text => { carStockListEl.innerHTML = `<div class="car-stock-empty">${text}</div>`; };
+  carStockSummary.textContent = '';
+
+  if (carStockState === 'loading' && !carStock.cars.length) return msg('재고를 불러오는 중...');
+  if (carStockState === 'error') return msg(`${escapeHtml(carStockError)}`);
+
+  const cars = selectedCars();
+  if (!carComboInput.value.trim()) return msg('차종을 선택하거나 입력하면<br>입고되어 있는 품번과 수량이 표시됩니다.');
+  if (!cars.length) return msg('일치하는 차종이 없습니다.');
+
+  const names = new Set(cars.map(c => c.car));
+  const rows = carStock.items.filter(it => names.has(it.car));
+  const total = rows.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+  const multi = cars.length > 1;
+  carStockSummary.textContent = `${multi ? cars.length + '개 차종' : cars[0].car} · 품번 ${rows.length}종 · 총 ${total}개`;
+
+  if (!rows.length) return msg('입고되어 있는 품번이 없습니다.');
+
+  carStockListEl.innerHTML = '<table><thead><tr><th>품번</th>' + (multi ? '<th>차종</th>' : '') + '<th class="qty">수량</th></tr></thead><tbody>' +
+    rows.map(it =>
+      `<tr><td>${escapeHtml(it.partNo)}${it.partName ? `<span class="part-sub">${escapeHtml(it.partName)}</span>` : ''}</td>` +
+      (multi ? `<td>${escapeHtml(it.car)}</td>` : '') +
+      `<td class="qty">${Number(it.qty) || 0}</td></tr>`
+    ).join('') + '</tbody></table>';
+}
+
 // 입고/출고 저장 (버튼을 누르면 바로 실행)
 async function savePart(type, btn) {
   if (isSaving) return;
@@ -490,6 +602,7 @@ function initEvents() {
     adminView.classList.remove('hidden');
     showAdminMsg('');
     renderCarList();
+    loadCarStock();
     window.scrollTo(0, 0);
   });
 
@@ -583,6 +696,60 @@ function initEvents() {
     showToast(isEnabled ? '소리 피드백 켜짐' : '소리 피드백 꺼짐');
   });
 
+  // --- 차종별 재고 콤보 박스 ---
+  carComboInput.addEventListener('input', () => {
+    carComboActive = -1;
+    renderCarCombo(false);
+    renderCarStock();
+  });
+
+  carComboInput.addEventListener('click', () => {
+    if (carComboList.classList.contains('hidden')) renderCarCombo(!carComboInput.value.trim());
+  });
+
+  carComboInput.addEventListener('keydown', (e) => {
+    const options = [...carComboList.querySelectorAll('li[data-car]')];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (carComboList.classList.contains('hidden')) renderCarCombo(!carComboInput.value.trim());
+      const count = carComboList.querySelectorAll('li[data-car]').length;
+      if (!count) return;
+      carComboActive = (carComboActive + (e.key === 'ArrowDown' ? 1 : -1) + count) % count;
+      renderCarCombo(!carComboInput.value.trim());
+      carComboList.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const pick = options[carComboActive] || (options.length === 1 ? options[0] : null);
+      if (pick) chooseCar(pick.dataset.car);
+      else closeCarCombo();
+    } else if (e.key === 'Escape') {
+      closeCarCombo();
+    }
+  });
+
+  carComboToggle.addEventListener('click', () => {
+    if (carComboList.classList.contains('hidden')) {
+      renderCarCombo(true);
+      carComboInput.focus();
+    } else {
+      closeCarCombo();
+    }
+  });
+
+  // 터치에서도 입력창 포커스가 빠지기 전에 선택되도록 mousedown 사용
+  carComboList.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li[data-car]');
+    if (!li) return;
+    e.preventDefault();
+    chooseCar(li.dataset.car);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!carComboEl.contains(e.target)) closeCarCombo();
+  });
+
+  carStockRefreshBtn.addEventListener('click', loadCarStock);
+
   // --- Admin View Event Listeners (from index (1).html) ---
 
   addCarBtn.addEventListener('click', async function () {
@@ -645,6 +812,7 @@ function initEvents() {
     try {
       await postApi({ action: 'delete', partNos: keys });
       showAdminMsg('✅ 선택 항목 삭제 완료', 'ok');
+      loadCarStock();
     } catch (err) {
       showAdminMsg('✅ 삭제 처리 완료', 'ok');
     } finally {

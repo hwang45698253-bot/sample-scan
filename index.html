@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 
-    <script type="module" crossorigin src="./assets/index-DDQ1THz4.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DG9oFFRS.css">
+    <script type="module" crossorigin src="./assets/index-BmNDDiiU.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-A5N2zblA.css">
   </head>
   <body>
     <div id="app" class="app-container">
@@ -46,10 +46,11 @@
               <line x1="17" y1="9" x2="23" y2="15"></line>
             </svg>
           </button>
-          <button id="adminBtn" class="icon-btn" title="관리 설정" aria-label="관리 설정">
+          <button id="adminBtn" class="icon-btn" title="재고 조회" aria-label="재고 조회">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
           </button>
         </div>
@@ -150,9 +151,29 @@
       <!-- ADMIN / SETTINGS PAGE VIEW (index (1).html 기능 100% 이식) -->
       <main id="adminView" class="main-card hidden">
         <div class="card-header">
-          <span class="badge">시스템 관리 및 재고 설정</span>
-          <h1>⚙️ 관리자 설정 페이지</h1>
-          <p class="description">차종 코드를 추가 관리하고, 입출고 재고 데이터를 실시간 조회 및 삭제합니다.</p>
+          <span class="badge">차종별 재고 및 시스템 관리</span>
+          <h1>📦 재고 조회 및 관리</h1>
+          <p class="description">차종별 입고 재고를 조회하고, 차종 코드 추가와 재고 삭제를 관리합니다.</p>
+        </div>
+
+        <!-- 카드 0: 📦 차종별 재고 (콤보 박스 + 리스트) -->
+        <div class="settings-card">
+          <div class="card-title-group">
+            <h3>📦 차종별 재고</h3>
+            <span class="desc">차종을 고르거나 입력하면 현재 입고되어 있는 품번과 수량이 아래에 표시됩니다.</span>
+          </div>
+          <div id="carCombo" class="combo">
+            <input id="carComboInput" class="standard-input combo-input" type="text" role="combobox" aria-expanded="false" aria-controls="carComboList" aria-autocomplete="list" placeholder="차종 선택 또는 입력" autocomplete="off" spellcheck="false" />
+            <button id="carComboToggle" class="combo-toggle" type="button" aria-label="차종 목록 열기">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <ul id="carComboList" class="combo-list hidden" role="listbox"></ul>
+          </div>
+          <div class="stock-summary-row">
+            <span id="carStockSummary" class="stock-summary"></span>
+            <button id="carStockRefreshBtn" class="link-btn" type="button">🔄 새로고침</button>
+          </div>
+          <div id="carStockList" class="data-list-table car-stock-list"></div>
         </div>
 
         <!-- 카드 1: 🚗 차종 코드 추가 -->

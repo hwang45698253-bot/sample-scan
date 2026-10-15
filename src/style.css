@@ -231,70 +231,77 @@ body {
   border-color: rgba(59, 130, 246, 0.3);
 }
 
-.scan-primary-btn {
+/* 스캔 버튼(1/5) + 스캔한 품번 박스 */
+.scan-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
   width: 100%;
-  padding: 18px 20px;
-  border-radius: var(--radius-lg);
+}
+
+.scan-primary-btn {
+  flex: 0 0 20%;
+  min-height: 64px;
+  padding: 8px 4px;
+  border-radius: var(--radius-md);
   background: var(--accent-gradient);
   border: none;
   color: white;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  gap: 4px;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
   box-shadow: var(--shadow-glow);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .scan-primary-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
 }
 
 .scan-primary-btn:active {
   transform: translateY(1px);
 }
 
-.btn-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.scan-primary-btn .btn-title {
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
-.btn-content {
+.scan-result-box {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  text-align: left;
-  flex-grow: 1;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--glass-border);
+  background: var(--bg-primary);
+  color: var(--text-muted);
 }
 
-.btn-title {
-  font-size: 1.15rem;
+.scan-result-box.filled {
+  border: 1px solid #a78bfa;
+  color: var(--text-main);
+}
+
+.scan-result-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.scan-result-value {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.btn-subtitle {
-  font-size: 0.78rem;
-  opacity: 0.85;
-  margin-top: 2px;
-}
-
-.btn-arrow {
-  opacity: 0.8;
-  transition: transform var(--transition-fast);
-}
-
-.scan-primary-btn:hover .btn-arrow {
-  transform: translateX(4px);
+  letter-spacing: 0.02em;
+  word-break: break-all;
 }
 
 /* Part No Input Section */

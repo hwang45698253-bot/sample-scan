@@ -21,6 +21,8 @@ const partNoInput = document.getElementById('partNoInput');
 const copyPartNoBtn = document.getElementById('copyPartNoBtn');
 const clearPartNoBtn = document.getElementById('clearPartNoBtn');
 const partInfoBox = document.getElementById('partInfo');
+const scanResultBox = document.getElementById('scanResultBox');
+const scanResultValue = document.getElementById('scanResultValue');
 const partIdBox = document.getElementById('partIdBox');
 const partIdValue = document.getElementById('partIdValue');
 
@@ -158,6 +160,13 @@ async function resolvePartId(...codes) {
   return [];
 }
 
+// 스캔 버튼 오른쪽 박스: 현재 품번(스캔·변환·직접입력 결과)을 표시
+function showScanResult(partNo) {
+  if (!scanResultBox) return;
+  scanResultBox.classList.toggle('filled', !!partNo);
+  scanResultValue.textContent = partNo || '-';
+}
+
 function showPartIdMapping(text, state) {
   if (!partIdBox) return;
   partIdBox.classList.toggle('hidden', state === 'hidden');
@@ -175,6 +184,7 @@ function showPartInfo(partNo, raw = partNo, autofillMapped = false) {
   if (!partInfoBox) return;
   const seq = ++partIdRequestSeq;
   autofill = null;
+  showScanResult(partNo);
   if (!partNo) {
     partInfoBox.textContent = '';
     showPartIdMapping('', 'hidden');
@@ -201,6 +211,7 @@ function showPartInfo(partNo, raw = partNo, autofillMapped = false) {
     if (autofillMapped && partNos.length === 1 && partNoInput.value.trim() === partNo) {
       autofill = { raw: String(raw).trim(), partNo: partNos[0] };
       partNoInput.value = partNos[0];
+      showScanResult(partNos[0]);
       showToast(`🔖 품번 매핑: ${partNos[0]}`);
     }
   }).catch(err => {

@@ -318,6 +318,13 @@ body {
   letter-spacing: 0;
 }
 
+.section-title {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
 /* Part No Input Section */
 .input-section {
   background: var(--glass-bg);
@@ -500,6 +507,11 @@ body {
   color: #a78bfa;
   min-height: 1.2em;
   margin-top: 2px;
+}
+
+/* 품번 정보가 없을 때는 빈 줄이 자리를 차지하지 않게 */
+.part-info-box:empty {
+  display: none;
 }
 
 /* 파트ID매핑 결과 박스 (Part No 입력창 아래) */

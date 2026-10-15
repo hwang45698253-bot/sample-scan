@@ -45,11 +45,6 @@ const eventBtns = document.querySelectorAll('.event-btn');
 
 // DOM Element Selectors - Admin / Settings View (from index (1).html)
 
-const loadStockBtn = document.getElementById('loadStockBtn');
-const stockSearchInput = document.getElementById('stockSearch');
-const stockListEl = document.getElementById('stockList');
-const disposeBtn = document.getElementById('disposeBtn');
-const adminMsgBox = document.getElementById('adminMsg');
 
 // 차종별 재고 (콤보 박스 + 리스트)
 const carComboEl = document.getElementById('carCombo');
@@ -76,7 +71,6 @@ let masterRows = [
   ['EA', 'EV6', '86350', 'Radar Control Assembly'],
   ['C2', 'K5', '99210', 'Camera Sensor Unit']
 ];
-let stockRows = [];
 
 // 파트ID매핑 시트: 스캔값 앞 6자리 = part_id(A열) → part_no(B열). 서버에서 ID 하나씩 조회
 const PART_ID_LEN = 6;
@@ -84,7 +78,6 @@ const partIdCache = new Map(); // id → Promise<[{ partNo, partName }]>
 let partIdRequestSeq = 0;
 // 스캔값이 매핑 품번으로 자동 변환됐을 때의 기록 { raw: 원본 스캔값, partNo: 변환된 품번 }
 let autofill = null;
-let selectedStockKeys = {};
 
 // Toast Utility
 function showToast(message, duration = 2500) {
@@ -97,12 +90,6 @@ function showToast(message, duration = 2500) {
     toast.style.transform = 'translateY(10px)';
     setTimeout(() => toast.remove(), 300);
   }, duration);
-}
-
-function showAdminMsg(text, cls = '') {
-  if (!adminMsgBox) return;
-  adminMsgBox.textContent = text;
-  adminMsgBox.className = 'admin-msg-box ' + cls;
 }
 
 const normPartNo = s => String(s || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -362,41 +349,6 @@ function escapeHtml(str) {
 
 // --- Admin / Settings Page Functions (from index (1).html) ---
 
-function renderStockList() {
-  if (!stockListEl) return;
-  const q = normPartNo(stockSearchInput.value);
-  const rows = q ? stockRows.filter(s => normPartNo(s.partNo).includes(q)) : stockRows.slice(0, 10);
-
-  if (!rows.length) {
-    stockListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">재고 결과가 없습니다.</div>';
-    updateDisposeBtn();
-    return;
-  }
-
-  stockListEl.innerHTML = `<table><thead><tr>` +
-    `<th style="width:36px;">선택</th><th>품번</th><th style="width:60px;text-align:right;">재고</th></tr></thead><tbody>` +
-    rows.map(s => `<tr><td><input type="checkbox" class="chk-item" data-key="${escapeHtml(s.key || s.partNo)}" ${selectedStockKeys[s.key || s.partNo] ? 'checked' : ''}></td>` +
-      `<td>${escapeHtml(s.partNo)}</td><td style="text-align:right;">${s.qty}</td></tr>`).join('') +
-    `</tbody></table>`;
-
-  document.querySelectorAll('#stockList .chk-item').forEach(c => {
-    c.addEventListener('change', function () {
-      const key = this.dataset.key;
-      if (this.checked) selectedStockKeys[key] = true;
-      else delete selectedStockKeys[key];
-      updateDisposeBtn();
-    });
-  });
-  updateDisposeBtn();
-}
-
-function updateDisposeBtn() {
-  if (!disposeBtn) return;
-  const count = Object.keys(selectedStockKeys).length;
-  disposeBtn.disabled = count === 0;
-  disposeBtn.textContent = count ? `선택 항목(${count}건) 삭제` : '선택 항목 삭제';
-}
-
 async function postApi(payload) {
   const body = JSON.stringify({ token: API_TOKEN, ...payload });
   const res = await fetch(API_URL, { method: 'POST', body });
@@ -532,17 +484,6 @@ async function savePart(type, btn) {
   void btn.offsetWidth;
   btn.classList.add('saved-flash');
 
-  // Add entry to stockRows
-  stockRows.push({
-    key: partNo + '_' + Date.now(),
-    partNo,
-    type,
-    qty,
-    event: selectedEvent,
-    memo,
-    days: 0
-  });
-
   const payload = { action: 'add', partNo, type, qty, event: selectedEvent, memo };
 
   try {
@@ -577,7 +518,6 @@ function initEvents() {
   adminBtn.addEventListener('click', () => {
     scanView.classList.add('hidden');
     adminView.classList.remove('hidden');
-    showAdminMsg('');
     loadCarStock();
     window.scrollTo(0, 0);
   });
@@ -727,47 +667,6 @@ function initEvents() {
   carStockRefreshBtn.addEventListener('click', loadCarStock);
 
   // --- Admin View Event Listeners (from index (1).html) ---
-
-  loadStockBtn.addEventListener('click', async () => {
-    stockListEl.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-subtle);">재고 불러오는 중...</div>';
-    disposeBtn.disabled = true;
-    selectedStockKeys = {};
-
-    try {
-      const r = await fetch(API_URL + '?action=stock');
-      const d = await r.json();
-      if (d && d.stock) {
-        stockRows = d.stock.filter(s => s.qty > 0);
-      }
-    } catch (e) {
-      // Keep existing local stockRows if offline
-    }
-    renderStockList();
-  });
-
-  stockSearchInput.addEventListener('input', renderStockList);
-
-  disposeBtn.addEventListener('click', async function () {
-    const keys = Object.keys(selectedStockKeys);
-    if (!keys.length || !confirm('선택한 재고 항목을 완전히 삭제합니다. 계속하시겠습니까?')) return;
-
-    this.disabled = true;
-    showAdminMsg('선택 항목 삭제 중...');
-
-    stockRows = stockRows.filter(s => !selectedStockKeys[s.key || s.partNo]);
-    renderStockList();
-
-    try {
-      await postApi({ action: 'delete', partNos: keys });
-      showAdminMsg('✅ 선택 항목 삭제 완료', 'ok');
-      loadCarStock();
-    } catch (err) {
-      showAdminMsg('✅ 삭제 처리 완료', 'ok');
-    } finally {
-      selectedStockKeys = {};
-      updateDisposeBtn();
-    }
-  });
 
   // Close Modals on Overlay Backdrop Click
   scannerModal.addEventListener('click', (e) => {

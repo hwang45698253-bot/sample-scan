@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 
-    <script type="module" crossorigin src="./assets/index-c6i7e5_x.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DhmUK3yI.css">
+    <script type="module" crossorigin src="./assets/index-jU8Him3V.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CkcFbZta.css">
   </head>
   <body>
     <div id="app" class="app-container">
@@ -151,9 +151,9 @@
       <!-- ADMIN / SETTINGS PAGE VIEW (index (1).html 기능 100% 이식) -->
       <main id="adminView" class="main-card hidden">
         <div class="card-header">
-          <span class="badge">차종별 재고 및 재고 관리</span>
-          <h1>📦 재고 조회 및 관리</h1>
-          <p class="description">차종별 입고 재고를 조회하고, 재고 기록을 삭제합니다.</p>
+          <span class="badge">차종별 재고 조회</span>
+          <h1>📦 재고 조회</h1>
+          <p class="description">차종을 선택하면 현재 입고되어 있는 품번과 수량을 확인할 수 있습니다.</p>
         </div>
 
         <!-- 카드 0: 📦 차종별 재고 (콤보 박스 + 리스트) -->
@@ -176,23 +176,6 @@
           <div id="carStockList" class="data-list-table car-stock-list"></div>
         </div>
 
-        <!-- 카드 2: 🗑️ 재고 일괄 삭제 -->
-        <div class="settings-card">
-          <div class="card-title-group">
-            <h3>🗑️ 재고 일괄 삭제</h3>
-            <span class="desc">선택한 품번의 입출고 기록 행을 데이터베이스에서 삭제합니다.</span>
-          </div>
-          <div class="form-row">
-            <button id="loadStockBtn" class="outline-btn-full">🔄 재고 목록 불러오기</button>
-          </div>
-          <div class="form-row">
-            <input id="stockSearch" class="standard-input" placeholder="🔍 품번 검색..." autocomplete="off" />
-          </div>
-          <div id="stockList" class="data-list-table"></div>
-          <button id="disposeBtn" class="danger-btn-full" disabled>선택 항목 삭제</button>
-        </div>
-
-        <div id="adminMsg" class="admin-msg-box"></div>
         <button id="backBtn" class="outline-btn-full back-nav-btn">← 스캔 화면으로 돌아가기</button>
       </main>
 

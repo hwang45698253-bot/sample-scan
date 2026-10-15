@@ -16,11 +16,9 @@ const startScanBtn = document.getElementById('startScanBtn');
 const cameraDeviceSelect = document.getElementById('cameraDeviceSelect');
 
 const partNoInput = document.getElementById('partNoInput');
-const copyPartNoBtn = document.getElementById('copyPartNoBtn');
 const clearPartNoBtn = document.getElementById('clearPartNoBtn');
 const partInfoBox = document.getElementById('partInfo');
 const scanResultBox = document.getElementById('scanResultBox');
-const scanResultValue = document.getElementById('scanResultValue');
 const partIdBox = document.getElementById('partIdBox');
 const partIdValue = document.getElementById('partIdValue');
 
@@ -157,11 +155,10 @@ async function resolvePartId(...codes) {
   return [];
 }
 
-// 스캔 버튼 오른쪽 박스: 현재 품번(스캔·변환·직접입력 결과)을 표시
+// 스캔 버튼 오른쪽 입력 박스: 품번이 들어 있으면 강조
 function showScanResult(partNo) {
   if (!scanResultBox) return;
   scanResultBox.classList.toggle('filled', !!partNo);
-  scanResultValue.textContent = partNo || '-';
 }
 
 function showPartIdMapping(text, state) {
@@ -471,8 +468,7 @@ async function savePart(type, btn) {
 
   // Clear Inputs for Next Scan
   partNoInput.value = '';
-  partNoInput.classList.remove('filled');
-  showPartInfo('');
+    showPartInfo('');
   qtyInput.value = 1;
   memoInput.value = '';
 
@@ -569,17 +565,7 @@ function initEvents() {
   btnIn.addEventListener('click', () => savePart('입고', btnIn));
   btnOut.addEventListener('click', () => savePart('출고', btnOut));
 
-  // Copy & Clear Input Buttons
-  copyPartNoBtn.addEventListener('click', () => {
-    if (!partNoInput.value) {
-      showToast('복사할 품번이 없습니다.');
-      return;
-    }
-    navigator.clipboard.writeText(partNoInput.value).then(() => {
-      showToast(`품번 복사완료: ${partNoInput.value}`);
-    });
-  });
-
+  // Clear Input Button
   clearPartNoBtn.addEventListener('click', () => {
     partNoInput.value = '';
     showPartInfo('');

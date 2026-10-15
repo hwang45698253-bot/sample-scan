@@ -48,6 +48,11 @@ const purposeInput = document.getElementById('purposeInput');
 const purposeError = document.getElementById('purposeError');
 const purposeCancel = document.getElementById('purposeCancel');
 const purposeOk = document.getElementById('purposeOk');
+const alertModal = document.getElementById('alertModal');
+const alertTitle = document.getElementById('alertTitle');
+const alertPart = document.getElementById('alertPart');
+const alertBody = document.getElementById('alertBody');
+const alertOk = document.getElementById('alertOk');
 const loadingText = document.getElementById('loadingText');
 const eventBtns = document.querySelectorAll('.event-btn');
 
@@ -391,7 +396,11 @@ async function postApi(payload) {
   const body = JSON.stringify({ token: API_TOKEN, ...payload });
   const res = await fetch(API_URL, { method: 'POST', body });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || '요청 처리에 실패했습니다.');
+  if (!data.ok) {
+    const err = new Error(data.error || '요청 처리에 실패했습니다.');
+    err.code = data.code || '';
+    throw err;
+  }
   return data;
 }
 
@@ -624,6 +633,26 @@ async function deleteSelectedParts() {
   }
 }
 
+// 알림 창: 확인을 눌러야 닫힘 (닫힌 뒤 onClose 실행)
+let alertOnClose = null;
+
+function showAlert(title, body, part = '', onClose = null) {
+  alertTitle.textContent = title;
+  alertBody.textContent = body;
+  alertPart.textContent = part;
+  alertPart.classList.toggle('hidden', !part);
+  alertOnClose = onClose;
+  alertModal.classList.remove('hidden');
+  setTimeout(() => alertOk.focus(), 50);
+}
+
+function closeAlert() {
+  alertModal.classList.add('hidden');
+  const cb = alertOnClose;
+  alertOnClose = null;
+  if (cb) cb();
+}
+
 // 출고 용도 입력 모달
 function openPurposeModal() {
   if (isSaving) return;
@@ -679,39 +708,51 @@ async function savePart(type, btn, purpose = '') {
   btnIn.disabled = true;
   btnOut.disabled = true;
 
-  audioController.playScanBeep();
-  audioController.triggerHaptic();
-
-  btn.classList.remove('saved-flash');
-  void btn.offsetWidth;
-  btn.classList.add('saved-flash');
-
   // 출고는 이벤트 칸에 입력한 용도를 기록하고, 입고는 선택한 이벤트를 기록
   const eventValue = type === '출고' ? purpose : selectedEvent;
   const payload = { action: 'add', partNo, type, qty, event: eventValue, memo };
 
   showLoading(`${type} 저장 중...`);
+  let failure = null;
   try {
     await postApi(payload);
-    showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${eventValue})`);
   } catch (err) {
-    showToast(`✅ ${type} 저장 완료: ${partNo}`);
+    failure = err;
   } finally {
     hideLoading();
   }
 
+  isSaving = false;
+  btnIn.disabled = false;
+  btnOut.disabled = false;
+
+  // 실패하면 성공으로 표시하지 않고, 입력값은 그대로 둬서 고쳐서 다시 시도할 수 있게 함
+  if (failure) {
+    if (failure.code === 'NO_STOCK') {
+      showAlert('재고가 없습니다.', '구글 시트 기록에 입고된 적이 없는 품번입니다. 품번을 다시 확인해 주세요.', partNo, () => partNoInput.focus());
+    } else if (failure instanceof TypeError) {
+      showAlert('저장하지 못했습니다', '서버에 연결할 수 없습니다. 네트워크를 확인한 뒤 다시 시도해 주세요. 입력한 내용은 그대로 남겨 두었습니다.', partNo);
+    } else {
+      showAlert('저장하지 못했습니다', `${failure.message} 입력한 내용은 그대로 남겨 두었습니다.`, partNo);
+    }
+    return;
+  }
+
+  audioController.playScanBeep();
+  audioController.triggerHaptic();
+  btn.classList.remove('saved-flash');
+  void btn.offsetWidth;
+  btn.classList.add('saved-flash');
+
+  showToast(`✅ ${type} 저장 완료: ${partNo} / ${qty}개 (${eventValue})`);
   scanStatusBadge.textContent = `${type} 저장 완료 [${eventValue}]`;
   scanStatusBadge.className = 'status-indicator scanned';
 
   // Clear Inputs for Next Scan
   partNoInput.value = '';
-    showPartInfo('');
+  showPartInfo('');
   qtyInput.value = 1;
   memoInput.value = '';
-
-  isSaving = false;
-  btnIn.disabled = false;
-  btnOut.disabled = false;
 
   // Auto Trigger Next Scan if keepScanning check is enabled
   if (keepScanningChk.checked) {
@@ -810,6 +851,10 @@ function initEvents() {
   purposeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); submitPurpose(); }
     else if (e.key === 'Escape') closePurposeModal();
+  });
+  alertOk.addEventListener('click', closeAlert);
+  alertModal.addEventListener('click', (e) => {
+    if (e.target === alertModal) closeAlert();
   });
   purposeModal.addEventListener('click', (e) => {
     if (e.target === purposeModal) closePurposeModal();
